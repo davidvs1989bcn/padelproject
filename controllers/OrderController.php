@@ -30,8 +30,10 @@ class OrderController {
             exit;
         }
 
-        $total = 0;
-        foreach ($cart as $it) $total += $it['price'] * $it['quantity'];
+        $total = 0.0;
+        foreach ($cart as $it) {
+            $total += ((float)$it['price'] * (int)$it['quantity']);
+        }
 
         $orderModel = new Order();
         $orderId = $orderModel->create((int)$_SESSION['user']['id'], $cart, (float)$total);

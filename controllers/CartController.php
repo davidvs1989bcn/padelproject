@@ -2,7 +2,9 @@
 class CartController {
 
     private function getCart(): array {
-        if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
+        if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+        }
         return $_SESSION['cart'];
     }
 
@@ -14,7 +16,9 @@ class CartController {
         $cart = $this->getCart();
 
         $total = 0;
-        foreach ($cart as $it) $total += $it['price'] * $it['quantity'];
+        foreach ($cart as $it) {
+            $total += (float)$it['price'] * (int)$it['quantity'];
+        }
 
         require 'views/cart/index.php';
     }
@@ -33,18 +37,48 @@ class CartController {
             exit;
         }
 
+        $category = mb_strtolower(trim($p['category'] ?? ''), 'UTF-8');
+        $isClothing = ($category === 'ropa');
+        $isShoes = ($category === 'zapatillas');
+
+        $size = trim($_POST['size'] ?? '');
+
+        // Validar talla si corresponde
+        if ($isClothing) {
+            $allowed = ['S','M','L','XL','XXL'];
+            if ($size === '' || !in_array($size, $allowed, true)) {
+                header("Location: " . BASE_URL . "/product/" . $id);
+                exit;
+            }
+        } elseif ($isShoes) {
+            $allowed = ['37.5','38','39','40','41','42','43','44','45','46'];
+            if ($size === '' || !in_array($size, $allowed, true)) {
+                header("Location: " . BASE_URL . "/product/" . $id);
+                exit;
+            }
+        } else {
+            // No talla en palas/bolsas/pelotas
+            $size = '';
+        }
+
         $cart = $this->getCart();
 
-        if (!isset($cart[$id])) {
-            $cart[$id] = [
+        // Clave única por producto+talla (ej: "12|XL")
+        $key = $id . '|' . $size;
+
+        if (!isset($cart[$key])) {
+            $cart[$key] = [
+                'key' => $key,
                 'id' => (int)$p['id'],
-                'name' => $p['name'],
+                'name' => (string)$p['name'],
                 'price' => (float)$p['price'],
-                'image' => $p['image'],
-                'quantity' => 1
+                'image' => (string)$p['image'],
+                'quantity' => 1,
+                'size' => $size,
+                'category' => (string)($p['category'] ?? '')
             ];
         } else {
-            $cart[$id]['quantity'] += 1;
+            $cart[$key]['quantity'] += 1;
         }
 
         $this->saveCart($cart);
@@ -53,9 +87,12 @@ class CartController {
     }
 
     public function remove(): void {
-        $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+        $key = trim($_POST['key'] ?? '');
         $cart = $this->getCart();
-        if (isset($cart[$id])) unset($cart[$id]);
+
+        if ($key !== '' && isset($cart[$key])) {
+            unset($cart[$key]);
+        }
 
         $this->saveCart($cart);
         header("Location: " . BASE_URL . "/cart");
@@ -64,21 +101,22 @@ class CartController {
 
     public function update(): void {
         $cart = $this->getCart();
+
         if (!isset($_POST['qty']) || !is_array($_POST['qty'])) {
             header("Location: " . BASE_URL . "/cart");
             exit;
         }
 
-        foreach ($_POST['qty'] as $id => $qty) {
-            $id = (int)$id;
+        foreach ($_POST['qty'] as $key => $qty) {
+            $key = (string)$key;
             $qty = (int)$qty;
 
-            if (!isset($cart[$id])) continue;
+            if (!isset($cart[$key])) continue;
 
             if ($qty <= 0) {
-                unset($cart[$id]);
+                unset($cart[$key]);
             } else {
-                $cart[$id]['quantity'] = $qty;
+                $cart[$key]['quantity'] = $qty;
             }
         }
 

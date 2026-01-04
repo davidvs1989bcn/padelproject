@@ -21,20 +21,33 @@
       </thead>
       <tbody>
         <?php foreach ($cart as $item): ?>
-          <?php $sub = $item['price'] * $item['quantity']; ?>
+          <?php $sub = (float)$item['price'] * (int)$item['quantity']; ?>
           <tr>
             <td>
               <div class="d-flex align-items-center gap-3">
-                <img src="<?= htmlspecialchars($item['image']) ?>" class="cart-img" alt="">
+                <img
+                  src="<?= ASSETS_URL . '/img/products/' . basename($item['image'] ?? '') ?>"
+                  class="cart-img"
+                  alt=""
+                  onerror="this.onerror=null;this.src='<?= ASSETS_URL ?>/img/products/placeholder.png';"
+                >
                 <div>
                   <div class="fw-semibold"><?= htmlspecialchars($item['name']) ?></div>
+
+                  <?php if (!empty($item['size'])): ?>
+                    <div class="text-muted small">Talla: <strong><?= htmlspecialchars($item['size']) ?></strong></div>
+                  <?php endif; ?>
+
+                  <?php if (!empty($item['category'])): ?>
+                    <div class="text-muted small"><?= htmlspecialchars($item['category']) ?></div>
+                  <?php endif; ?>
                 </div>
               </div>
             </td>
 
             <td class="text-center">
               <input class="form-control text-center" type="number" min="0"
-                     name="qty[<?= (int)$item['id'] ?>]" value="<?= (int)$item['quantity'] ?>">
+                     name="qty[<?= htmlspecialchars($item['key']) ?>]" value="<?= (int)$item['quantity'] ?>">
               <small class="text-muted">0 elimina</small>
             </td>
 
@@ -42,10 +55,18 @@
             <td class="text-end fw-semibold"><?= number_format((float)$sub, 2) ?>€</td>
 
             <td class="text-end">
-              <form action="<?= BASE_URL ?>/cart/remove" method="POST">
-                <input type="hidden" name="id" value="<?= (int)$item['id'] ?>">
-                <button class="btn btn-outline-danger btn-sm">Quitar</button>
-              </form>
+              <!-- ✅ SIN form anidado: usamos button con formaction -->
+              <input type="hidden" name="remove_key" value="<?= htmlspecialchars($item['key']) ?>">
+              <button
+                type="submit"
+                class="btn btn-outline-danger btn-sm"
+                formaction="<?= BASE_URL ?>/cart/remove"
+                formmethod="POST"
+                name="key"
+                value="<?= htmlspecialchars($item['key']) ?>"
+              >
+                Quitar
+              </button>
             </td>
           </tr>
         <?php endforeach; ?>

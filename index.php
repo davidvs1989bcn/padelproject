@@ -4,7 +4,7 @@ require_once 'config/config.php';
 
 // Autoload
 spl_autoload_register(function ($class) {
-    $paths = ['models/', 'controllers/', 'config/']; // ✅ añadimos config
+    $paths = ['models/', 'controllers/', 'config/'];
     foreach ($paths as $path) {
         if (file_exists($path . $class . '.php')) {
             require_once $path . $class . '.php';
@@ -12,7 +12,6 @@ spl_autoload_register(function ($class) {
         }
     }
 });
-
 
 // === ROUTER LOGIC V5 (CORREGIDO PARA WINDOWS) ===
 $request = $_SERVER['REQUEST_URI'];
@@ -77,7 +76,6 @@ switch ($route) {
         $controller->remove();
         break;
 
-    // ✅ NUEVO: actualizar cantidades
     case '/cart/update':
         $controller = new CartController();
         $controller->update();
@@ -89,10 +87,25 @@ switch ($route) {
         $controller->login();
         break;
 
-    // ✅ NUEVO: register
     case '/register':
         $controller = new AuthController();
         $controller->register();
+        break;
+
+    // ✅ AJAX comprobar email
+    case '/check-email':
+        $controller = new AuthController();
+        $controller->checkEmail();
+        break;
+
+    case '/forgot-password':
+        $controller = new AuthController();
+        $controller->forgot();
+        break;
+
+    case '/reset-password':
+        $controller = new AuthController();
+        $controller->reset();
         break;
 
     case '/logout':
@@ -101,68 +114,48 @@ switch ($route) {
         break;
 
     // === PEDIDOS ===
-    // ✅ NUEVO: lista de pedidos
     case '/orders':
         $controller = new OrderController();
         $controller->index();
         break;
 
-    // ✅ NUEVO: checkout (compra)
     case '/checkout':
         $controller = new OrderController();
         $controller->checkout();
         break;
 
-    // ✅ NUEVO: ver pedido por id
     case (preg_match('/^\/order\/(\d+)$/', $route, $matches) ? true : false):
         $controller = new OrderController();
         $controller->show((int)$matches[1]);
         break;
 
-    // === ADMIN (opcional) ===
-        // === ADMIN ===
+    // === ADMIN ===
     case '/admin':
         $controller = new AdminController();
         $controller->dashboard();
         break;
 
+    // === ADMIN CRUD PRODUCTOS ===
     case '/admin/products':
         $controller = new AdminController();
         $controller->products();
         break;
 
-    case '/admin/product/create':
+    case '/admin/products/create':
         $controller = new AdminController();
         $controller->create();
         break;
 
-    case (preg_match('/^\/admin\/product\/edit\/(\d+)$/', $route, $matches) ? true : false):
+    case (preg_match('/^\/admin\/products\/edit\/(\d+)$/', $route, $matches) ? true : false):
         $controller = new AdminController();
         $controller->edit((int)$matches[1]);
         break;
 
-    case '/admin/product/delete':
+    // ✅ BORRADO POR POST (lo que usa tu formulario)
+    case '/admin/products/delete':
         $controller = new AdminController();
         $controller->delete();
         break;
-
-    // ✅ AJAX: comprobar email en registro
-    case '/check-email':
-        $controller = new AuthController();
-        $controller->checkEmail();
-        break;
-            // ✅ Restablecer contraseña (paso 1)
-    case '/forgot-password':
-        $controller = new AuthController();
-        $controller->forgot();
-        break;
-
-    // ✅ Restablecer contraseña (paso 2)
-    case '/reset-password':
-        $controller = new AuthController();
-        $controller->reset();
-        break;
-
 
     default:
         http_response_code(404);

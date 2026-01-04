@@ -3,7 +3,8 @@
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="m-0">Admin - Productos</h2>
-    <a class="btn btn-success" href="<?= BASE_URL ?>/admin/product/create">+ Añadir producto</a>
+    <!-- ✅ ruta correcta -->
+    <a class="btn btn-success" href="<?= BASE_URL ?>/admin/products/create">+ Añadir producto</a>
   </div>
 
   <?php if (empty($products)): ?>
@@ -39,9 +40,9 @@
               <td class="text-end"><?= (int)($p['stock'] ?? 0) ?></td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-primary"
-                   href="<?= BASE_URL ?>/admin/product/edit/<?= (int)$p['id'] ?>">Editar</a>
+                   href="<?= BASE_URL ?>/admin/products/edit/<?= (int)$p['id'] ?>">Editar</a>
 
-                <form method="POST" action="<?= BASE_URL ?>/admin/product/delete" class="d-inline"
+                <form method="POST" action="<?= BASE_URL ?>/admin/products/delete" class="d-inline"
                       onsubmit="return confirm('¿Eliminar este producto?');">
                   <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
                   <button class="btn btn-sm btn-outline-danger">Eliminar</button>

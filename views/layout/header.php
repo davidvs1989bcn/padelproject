@@ -12,6 +12,12 @@ $user = $_SESSION['user'] ?? null;
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= APP_NAME ?></title>
 
+  <!-- ✅ FAVICON (profesional) -->
+  <link rel="icon" type="image/png" sizes="32x32" href="<?= ASSETS_URL ?>/img/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="<?= ASSETS_URL ?>/img/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="<?= ASSETS_URL ?>/img/favicon/apple-touch-icon.png">
+  <link rel="shortcut icon" href="<?= ASSETS_URL ?>/img/favicon/favicon.ico">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">

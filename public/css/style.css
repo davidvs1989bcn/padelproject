@@ -1,11 +1,148 @@
-.product-card img,
-.card-img-top {
-    width: 100%;
-    height: 220px;          /* ALTURA FIJA */
-    object-fit: contain;    /* NO deforma la imagen */
-    background-color: #fff;
+/* =========================
+   BASE
+========================= */
+:root{
+  --brand: #f5b301;   /* amarillo PadelPro */
+  --dark: #0f141a;
+  --muted: #6c757d;
+  --card-radius: 14px;
 }
 
-.product-card {
-    height: 100%;
+body{
+  background: #f6f7f9;
+}
+
+/* =========================
+   NAVBAR
+========================= */
+.navbar{
+  background: linear-gradient(90deg, #0f141a 0%, #121a22 60%, #0f141a 100%) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.15);
+}
+
+.navbar .navbar-brand span{
+  font-weight: 800;
+  letter-spacing: .3px;
+}
+
+.logo{
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.25));
+}
+
+.navbar .nav-link{
+  color: rgba(255,255,255,.85) !important;
+  transition: .2s ease;
+}
+
+.navbar .nav-link:hover{
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+.navbar .btn.btn-warning{
+  background: var(--brand);
+  border: none;
+  font-weight: 700;
+}
+.navbar .btn.btn-warning:hover{
+  filter: brightness(0.95);
+}
+
+/* Badge carrito más pro */
+.navbar .badge{
+  border-radius: 999px;
+  padding: .35em .55em;
+}
+
+/* =========================
+   TITULOS / SECCIONES
+========================= */
+h2{
+  font-weight: 800;
+}
+
+/* =========================
+   PRODUCT CARDS (CATÁLOGO)
+========================= */
+.product-card{
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 20, 26, 0.08);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.product-card:hover{
+  transform: translateY(-5px);
+  box-shadow: 0 16px 34px rgba(15, 20, 26, 0.14);
+}
+
+/* CONTENEDOR de imagen (para hover zoom sin deformar) */
+.product-card .img-wrap{
+  height: 240px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.product-card .img-wrap img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform .35s ease;
+}
+
+/* Zoom suave en hover */
+.product-card:hover .img-wrap img{
+  transform: scale(1.10);
+}
+
+/* Textos */
+.product-card .card-title{
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin-bottom: .35rem;
+}
+
+.product-card .price{
+  color: #e63946;
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin-bottom: .35rem;
+}
+
+.product-card .text-muted{
+  color: #7a8694 !important;
+}
+
+/* Botón añadir */
+.product-card .btn.btn-warning{
+  background: var(--brand);
+  border: none;
+  font-weight: 800;
+  transition: .2s ease;
+}
+
+.product-card .btn.btn-warning:hover{
+  filter: brightness(.95);
+  transform: translateY(-1px);
+}
+
+/* =========================
+   DETALLE PRODUCTO (si lo usas)
+========================= */
+.product-detail-img{
+  width: 100%;
+  height: 360px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: var(--card-radius);
+  box-shadow: 0 10px 24px rgba(15, 20, 26, 0.08);
+  padding: 18px;
 }

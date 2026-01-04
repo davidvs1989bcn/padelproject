@@ -7,36 +7,50 @@
     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
   <?php endif; ?>
 
-  <form method="POST" action="<?= BASE_URL ?>/admin/product/edit/<?= (int)$product['id'] ?>" class="card p-4 shadow-sm">
+  <form id="adminEditForm" method="POST" action="<?= BASE_URL ?>/admin/products/edit/<?= (int)$product['id'] ?>"
+        class="card p-4 shadow-sm needs-validation" novalidate>
+
     <div class="row g-3">
       <div class="col-md-8">
         <label class="form-label">Nombre *</label>
-        <input class="form-control" type="text" name="name" required value="<?= htmlspecialchars($product['name']) ?>">
+        <input class="form-control" type="text" name="name" id="pName" required minlength="3"
+               value="<?= htmlspecialchars($product['name']) ?>">
+        <div class="invalid-feedback">El nombre es obligatorio (mínimo 3 caracteres).</div>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Marca</label>
-        <input class="form-control" type="text" name="brand" value="<?= htmlspecialchars($product['brand'] ?? '') ?>">
+        <input class="form-control" type="text" name="brand"
+               value="<?= htmlspecialchars($product['brand'] ?? '') ?>">
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Categoría</label>
-        <input class="form-control" type="text" name="category" value="<?= htmlspecialchars($product['category'] ?? '') ?>">
+        <input class="form-control" type="text" name="category"
+               value="<?= htmlspecialchars($product['category'] ?? '') ?>">
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Precio (€) *</label>
-        <input class="form-control" type="number" step="0.01" min="0" name="price" required value="<?= htmlspecialchars($product['price']) ?>">
+        <input class="form-control" type="number" step="0.01" min="0" name="price" id="pPrice" required
+               value="<?= htmlspecialchars($product['price']) ?>">
+        <div class="invalid-feedback">Introduce un precio válido (0 o mayor).</div>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Stock</label>
-        <input class="form-control" type="number" min="0" name="stock" value="<?= htmlspecialchars($product['stock'] ?? 0) ?>">
+        <input class="form-control" type="number" min="0" step="1" name="stock" id="pStock"
+               value="<?= htmlspecialchars($product['stock'] ?? 0) ?>">
+        <div class="invalid-feedback">El stock debe ser un número entero (0 o mayor).</div>
       </div>
 
       <div class="col-12">
         <label class="form-label">Imagen (ruta) *</label>
-        <input class="form-control" type="text" name="image" required value="<?= htmlspecialchars($product['image']) ?>">
+        <input class="form-control" type="text" name="image" id="pImage" required
+               value="<?= htmlspecialchars($product['image']) ?>">
+        <div class="invalid-feedback">
+          La imagen es obligatoria y debe empezar por <code>/public/img/products/</code>
+        </div>
         <small class="text-muted">Se mostrará en catálogo y detalle.</small>
       </div>
 
@@ -53,7 +67,8 @@
 
       <div class="col-12">
         <label class="form-label">Descripción corta</label>
-        <input class="form-control" type="text" name="short_description" value="<?= htmlspecialchars($product['short_description'] ?? '') ?>">
+        <input class="form-control" type="text" name="short_description"
+               value="<?= htmlspecialchars($product['short_description'] ?? '') ?>">
       </div>
 
       <div class="col-12">
@@ -68,5 +83,50 @@
     </div>
   </form>
 </div>
+
+<script>
+(() => {
+  const form = document.getElementById('adminEditForm');
+  const image = document.getElementById('pImage');
+  const stock = document.getElementById('pStock');
+
+  function validateImagePath() {
+    const v = (image.value || '').trim();
+    if (v === '' || !v.startsWith('/public/img/products/')) {
+      image.setCustomValidity('bad');
+    } else {
+      image.setCustomValidity('');
+    }
+  }
+
+  function validateStockInteger() {
+    const v = (stock.value || '').trim();
+    if (v === '') {
+      stock.setCustomValidity('');
+      return;
+    }
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < 0) {
+      stock.setCustomValidity('bad');
+    } else {
+      stock.setCustomValidity('');
+    }
+  }
+
+  image.addEventListener('input', validateImagePath);
+  stock.addEventListener('input', validateStockInteger);
+
+  form.addEventListener('submit', (e) => {
+    validateImagePath();
+    validateStockInteger();
+
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    form.classList.add('was-validated');
+  });
+})();
+</script>
 
 <?php require_once 'views/layout/footer.php'; ?>

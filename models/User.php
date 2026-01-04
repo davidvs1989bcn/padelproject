@@ -18,7 +18,6 @@ class User {
     public function create(string $name, string $email, string $password, string $securityQuestion, string $securityAnswer): bool {
         $hash = password_hash($password, PASSWORD_BCRYPT);
 
-        // normalizamos respuesta (para que no distinga may/min)
         $normalizedAnswer = mb_strtolower(trim($securityAnswer), 'UTF-8');
         $answerHash = password_hash($normalizedAnswer, PASSWORD_BCRYPT);
 
@@ -37,7 +36,6 @@ class User {
         return $user;
     }
 
-    // ✅ Recuperación: obtener pregunta
     public function getSecurityQuestionByEmail(string $email): ?string {
         $stmt = $this->conn->prepare("SELECT security_question FROM users WHERE email = ?");
         $stmt->execute([$email]);
@@ -46,7 +44,6 @@ class User {
         return $row['security_question'] ?? null;
     }
 
-    // ✅ Recuperación: verificar respuesta
     public function verifySecurityAnswer(string $email, string $answer): bool {
         $stmt = $this->conn->prepare("SELECT security_answer_hash FROM users WHERE email = ?");
         $stmt->execute([$email]);
@@ -57,7 +54,6 @@ class User {
         return password_verify($normalized, $row['security_answer_hash']);
     }
 
-    // ✅ Recuperación: cambiar password
     public function updatePasswordByEmail(string $email, string $newPassword): bool {
         $hash = password_hash($newPassword, PASSWORD_BCRYPT);
         $stmt = $this->conn->prepare("UPDATE users SET password = ? WHERE email = ?");

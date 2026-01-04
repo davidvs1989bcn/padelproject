@@ -71,6 +71,7 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
             <?php
               $img = $it['product_image'] ?? '';
               $imgSrc = $img ? (ASSETS_URL . '/img/products/' . basename($img)) : (ASSETS_URL . '/img/products/placeholder.png');
+              $size = trim((string)($it['size'] ?? ''));
             ?>
             <tr>
               <td>
@@ -84,9 +85,13 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
 
               <td>
                 <div class="fw-semibold"><?= htmlspecialchars($it['product_name']) ?></div>
+
                 <div class="small text-muted">
                   <?= htmlspecialchars($it['product_brand'] ?? '') ?>
                   <?= !empty($it['product_category']) ? ' • ' . htmlspecialchars($it['product_category']) : '' ?>
+                  <?php if ($size !== ''): ?>
+                    • Talla: <strong><?= htmlspecialchars($size) ?></strong>
+                  <?php endif; ?>
                 </div>
               </td>
 

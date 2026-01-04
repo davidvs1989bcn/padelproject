@@ -6,6 +6,10 @@ $category = mb_strtolower(trim($product['category'] ?? ''), 'UTF-8');
 $isClothing = ($category === 'ropa');
 $isShoes = ($category === 'zapatillas');
 
+// ✅ Calcetines -> talla de zapatillas
+$nameLower = mb_strtolower($product['name'] ?? '', 'UTF-8');
+$isSocks = (strpos($nameLower, 'calcet') !== false);
+
 $clothingSizes = ['S','M','L','XL','XXL'];
 $shoeSizes = ['37.5','38','39','40','41','42','43','44','45','46'];
 ?>
@@ -41,7 +45,8 @@ $shoeSizes = ['37.5','38','39','40','41','42','43','44','45','46'];
     <form action="<?= BASE_URL ?>/cart/add" method="POST" class="mt-4">
       <input type="hidden" name="id" value="<?= (int)$product['id'] ?>">
 
-      <?php if ($isClothing): ?>
+      <?php if ($isClothing && !$isSocks): ?>
+        <!-- ✅ ROPA normal: S..XXL -->
         <div class="mb-3" style="max-width: 240px;">
           <label class="form-label fw-semibold">Talla (Ropa)</label>
           <select class="form-select" name="size" required>
@@ -52,9 +57,13 @@ $shoeSizes = ['37.5','38','39','40','41','42','43','44','45','46'];
           </select>
           <small class="text-muted">De S a XXL</small>
         </div>
-      <?php elseif ($isShoes): ?>
+
+      <?php elseif ($isShoes || $isSocks): ?>
+        <!-- ✅ ZAPATILLAS y CALCETINES: 37.5..46 -->
         <div class="mb-3" style="max-width: 240px;">
-          <label class="form-label fw-semibold">Talla (Zapatillas)</label>
+          <label class="form-label fw-semibold">
+            Talla (<?= $isSocks ? 'Calcetines' : 'Zapatillas' ?>)
+          </label>
           <select class="form-select" name="size" required>
             <option value="">Selecciona talla</option>
             <?php foreach ($shoeSizes as $s): ?>

@@ -81,6 +81,65 @@ class Product {
         return $stmt->fetchAll();
     }
 
+    // =============================
+    // STOCK POR TALLA (product_sizes)
+    // =============================
+
+    // ¿Existe fila de stock por talla para este producto+talla?
+    public function hasSizeStockRow(int $productId, string $size): bool {
+        $stmt = $this->conn->prepare("SELECT 1 FROM product_sizes WHERE product_id = ? AND size = ? LIMIT 1");
+        $stmt->execute([$productId, $size]);
+        return (bool)$stmt->fetchColumn();
+    }
+
+    // Devuelve stock por talla. Si no existe fila, devuelve null (significa: producto sin tallas controladas)
+    public function getSizeStock(int $productId, string $size): ?int {
+        $stmt = $this->conn->prepare("SELECT stock FROM product_sizes WHERE product_id = ? AND size = ? LIMIT 1");
+        $stmt->execute([$productId, $size]);
+        $val = $stmt->fetchColumn();
+        if ($val === false) return null;
+        return (int)$val;
+    }
+
+    // Descuenta stock por talla de forma segura (no deja negativos). Devuelve true si pudo, false si no hay stock.
+    public function decreaseSizeStock(int $productId, string $size, int $qty): bool {
+        if ($qty <= 0) return true;
+
+        $sql = "
+            UPDATE product_sizes
+            SET stock = stock - :qty
+            WHERE product_id = :pid
+              AND size = :size
+              AND stock >= :qty
+        ";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([
+            ':qty' => $qty,
+            ':pid' => $productId,
+            ':size' => $size
+        ]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    // Suma stock por talla (por si luego haces devoluciones)
+    public function increaseSizeStock(int $productId, string $size, int $qty): bool {
+        if ($qty <= 0) return true;
+
+        $sql = "
+            UPDATE product_sizes
+            SET stock = stock + :qty
+            WHERE product_id = :pid
+              AND size = :size
+        ";
+        $stmt = $this->conn->prepare($sql);
+        return $stmt->execute([
+            ':qty' => $qty,
+            ':pid' => $productId,
+            ':size' => $size
+        ]);
+    }
+
     // ADMIN CRUD
     public function create(array $data): bool {
         $sql = "INSERT INTO products (name, brand, category, price, stock, image, short_description, description)

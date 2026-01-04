@@ -41,6 +41,7 @@ function statusBadge(string $status): array {
         $imgSrc = $img ? (ASSETS_URL . '/img/products/' . basename($img)) : (ASSETS_URL . '/img/products/placeholder.png');
         $firstName = $o['first_product_name'] ?? 'Pedido';
         $itemCount = (int)($o['item_count'] ?? 0);
+        $hasSizes = (int)($o['has_sizes'] ?? 0);
       ?>
       <div class="col-12">
         <div class="card shadow-sm border-0">
@@ -56,10 +57,20 @@ function statusBadge(string $status): array {
                 </div>
 
                 <div>
-                  <div class="small text-muted">Pedido #<?= (int)$o['id'] ?> • <?= formatDateES($o['created_at'] ?? '') ?></div>
-                  <div class="fw-semibold"><?= htmlspecialchars($firstName) ?></div>
                   <div class="small text-muted">
-                    <?= $itemCount ?> artículo(s)
+                    Pedido #<?= (int)$o['id'] ?> • <?= formatDateES($o['created_at'] ?? '') ?>
+                  </div>
+
+                  <div class="fw-semibold"><?= htmlspecialchars($firstName) ?></div>
+
+                  <div class="small text-muted d-flex flex-wrap gap-2 align-items-center">
+                    <span><?= $itemCount ?> artículo(s)</span>
+
+                    <?php if ($hasSizes === 1): ?>
+                      <span class="badge text-bg-light border">
+                        <i class="fas fa-ruler-combined"></i> Incluye tallas
+                      </span>
+                    <?php endif; ?>
                   </div>
                 </div>
               </div>

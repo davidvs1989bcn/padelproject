@@ -21,6 +21,7 @@ class OrderController {
         require 'views/orders/index.php';
     }
 
+    // ✅ Checkout: GET = resumen / POST = confirmar
     public function checkout(): void {
         $this->requireLogin();
 
@@ -30,19 +31,35 @@ class OrderController {
             exit;
         }
 
-        $total = 0.0;
+        $total = 0;
         foreach ($cart as $it) {
-            $total += ((float)$it['price'] * (int)$it['quantity']);
+            $total += (float)$it['price'] * (int)$it['quantity'];
         }
 
-        $orderModel = new Order();
-        $orderId = $orderModel->create((int)$_SESSION['user']['id'], $cart, (float)$total);
+        $error = null;
 
-        // Vaciar carrito
-        $_SESSION['cart'] = [];
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            try {
+                $orderModel = new Order();
 
-        header("Location: " . BASE_URL . "/order/" . $orderId);
-        exit;
+                // ✅ Crea pedido (y descuenta stock por talla en el modelo)
+                $orderId = $orderModel->create((int)$_SESSION['user']['id'], $cart, (float)$total);
+
+                // Vaciar carrito
+                $_SESSION['cart'] = [];
+
+                header("Location: " . BASE_URL . "/order/" . $orderId);
+                exit;
+
+            } catch (Throwable $e) {
+                // ✅ Mensaje amable (sin romper la web)
+                $error = "No hay stock suficiente para alguna de las tallas seleccionadas. "
+                       . "Revisa el carrito y vuelve a intentarlo.";
+            }
+        }
+
+        // GET -> mostrar resumen (o POST con error -> volver a mostrar resumen)
+        require 'views/orders/checkout.php';
     }
 
     public function show(int $orderId): void {

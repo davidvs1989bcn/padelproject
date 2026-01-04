@@ -55,18 +55,10 @@
             <td class="text-end fw-semibold"><?= number_format((float)$sub, 2) ?>€</td>
 
             <td class="text-end">
-              <!-- ✅ SIN form anidado: usamos button con formaction -->
-              <input type="hidden" name="remove_key" value="<?= htmlspecialchars($item['key']) ?>">
-              <button
-                type="submit"
-                class="btn btn-outline-danger btn-sm"
-                formaction="<?= BASE_URL ?>/cart/remove"
-                formmethod="POST"
-                name="key"
-                value="<?= htmlspecialchars($item['key']) ?>"
-              >
-                Quitar
-              </button>
+              <form action="<?= BASE_URL ?>/cart/remove" method="POST">
+                <input type="hidden" name="key" value="<?= htmlspecialchars($item['key']) ?>">
+                <button class="btn btn-outline-danger btn-sm">Quitar</button>
+              </form>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -88,11 +80,9 @@
     <a href="<?= BASE_URL ?>/login" class="btn btn-warning btn-sm ms-2">Login</a>
   </div>
 <?php else: ?>
-  <form action="<?= BASE_URL ?>/checkout" method="POST">
-    <button class="btn btn-success btn-lg">
-      <i class="fas fa-credit-card"></i> Finalizar compra
-    </button>
-  </form>
+  <a class="btn btn-success btn-lg" href="<?= BASE_URL ?>/checkout">
+    <i class="fas fa-credit-card"></i> Ir a checkout
+  </a>
 <?php endif; ?>
 
 <?php endif; ?>

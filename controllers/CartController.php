@@ -41,17 +41,21 @@ class CartController {
         $isClothing = ($category === 'ropa');
         $isShoes = ($category === 'zapatillas');
 
+        // ✅ Calcetines -> talla de zapatillas (37.5 a 46)
+        $nameLower = mb_strtolower(trim($p['name'] ?? ''), 'UTF-8');
+        $isSocks = (strpos($nameLower, 'calcet') !== false);
+
         $size = trim($_POST['size'] ?? '');
 
         // Validar talla si corresponde
-        if ($isClothing) {
-            $allowed = ['S','M','L','XL','XXL'];
+        if ($isShoes || $isSocks) {
+            $allowed = ['37.5','38','39','40','41','42','43','44','45','46'];
             if ($size === '' || !in_array($size, $allowed, true)) {
                 header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
             }
-        } elseif ($isShoes) {
-            $allowed = ['37.5','38','39','40','41','42','43','44','45','46'];
+        } elseif ($isClothing) {
+            $allowed = ['S','M','L','XL','XXL'];
             if ($size === '' || !in_array($size, $allowed, true)) {
                 header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
@@ -65,6 +69,24 @@ class CartController {
 
         // Clave única por producto+talla (ej: "12|XL")
         $key = $id . '|' . $size;
+
+        // ==========================
+        // ✅ CONTROL STOCK POR TALLA
+        // ==========================
+        // Solo aplicamos control si este producto+talla existe en product_sizes
+        // (si no existe fila, lo tratamos como "sin control por talla")
+        if ($size !== '' && $productModel->hasSizeStockRow($id, $size)) {
+            $currentQtyInCart = isset($cart[$key]) ? (int)$cart[$key]['quantity'] : 0;
+            $desiredQty = $currentQtyInCart + 1;
+
+            $stock = $productModel->getSizeStock($id, $size); // aquí ya no será null porque hasSizeStockRow true
+            $stock = (int)$stock;
+
+            if ($desiredQty > $stock) {
+                header("Location: " . BASE_URL . "/product/" . $id . "?err=stock");
+                exit;
+            }
+        }
 
         if (!isset($cart[$key])) {
             $cart[$key] = [
@@ -106,6 +128,9 @@ class CartController {
             header("Location: " . BASE_URL . "/cart");
             exit;
         }
+
+        // (opcional) aquí también podríamos validar que no se suba a más del stock,
+        // pero lo importante es bloquear en checkout (lo haremos en Order::create)
 
         foreach ($_POST['qty'] as $key => $qty) {
             $key = (string)$key;

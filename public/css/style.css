@@ -1,0 +1,11 @@
+.product-card img,
+.card-img-top {
+    width: 100%;
+    height: 220px;          /* ALTURA FIJA */
+    object-fit: contain;    /* NO deforma la imagen */
+    background-color: #fff;
+}
+
+.product-card {
+    height: 100%;
+}

@@ -28,9 +28,13 @@ class AdminController {
     public function create(): void {
         $this->requireAdmin();
 
+        $brandModel = new Brand();
+        $brands = $brandModel->all();
+
         $error = null;
         $data = [
             'name' => '',
+            'brand_id' => '',
             'brand' => '',
             'category' => '',
             'price' => '',
@@ -42,7 +46,7 @@ class AdminController {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['name'] = trim($_POST['name'] ?? '');
-            $data['brand'] = trim($_POST['brand'] ?? '');
+            $data['brand_id'] = trim($_POST['brand_id'] ?? '');
             $data['category'] = trim($_POST['category'] ?? '');
             $data['price'] = trim($_POST['price'] ?? '');
             $data['stock'] = trim($_POST['stock'] ?? '');
@@ -50,7 +54,17 @@ class AdminController {
             $data['short_description'] = trim($_POST['short_description'] ?? '');
             $data['description'] = trim($_POST['description'] ?? '');
 
-            // Validación servidor
+            $brandId = ($data['brand_id'] === '' ? null : (int)$data['brand_id']);
+            if ($brandId !== null && $brandId <= 0) $brandId = null;
+
+            // Si hay brand_id, saco el nombre para guardarlo también en products.brand (legacy)
+            $brandName = '';
+            if ($brandId !== null) {
+                $br = $brandModel->find($brandId);
+                $brandName = $br ? (string)$br['name'] : '';
+            }
+            $data['brand'] = $brandName;
+
             if ($data['name'] === '' || $data['price'] === '' || $data['image'] === '') {
                 $error = "Nombre, precio e imagen son obligatorios.";
             } elseif (!is_numeric($data['price']) || (float)$data['price'] < 0) {
@@ -61,7 +75,8 @@ class AdminController {
                 $productModel = new Product();
                 $ok = $productModel->create([
                     'name' => $data['name'],
-                    'brand' => $data['brand'],
+                    'brand' => $data['brand'],       // legacy texto
+                    'brand_id' => $brandId,          // NUEVO
                     'category' => $data['category'],
                     'price' => (float)$data['price'],
                     'stock' => ($data['stock'] === '' ? 0 : (int)$data['stock']),
@@ -84,6 +99,9 @@ class AdminController {
     public function edit(int $id): void {
         $this->requireAdmin();
 
+        $brandModel = new Brand();
+        $brands = $brandModel->all();
+
         $productModel = new Product();
         $product = $productModel->find($id);
 
@@ -100,13 +118,22 @@ class AdminController {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['name'] ?? '');
-            $brand = trim($_POST['brand'] ?? '');
+            $brandIdRaw = trim($_POST['brand_id'] ?? '');
             $category = trim($_POST['category'] ?? '');
             $price = trim($_POST['price'] ?? '');
             $stock = trim($_POST['stock'] ?? '');
             $image = trim($_POST['image'] ?? '');
             $short = trim($_POST['short_description'] ?? '');
             $desc = trim($_POST['description'] ?? '');
+
+            $brandId = ($brandIdRaw === '' ? null : (int)$brandIdRaw);
+            if ($brandId !== null && $brandId <= 0) $brandId = null;
+
+            $brandName = '';
+            if ($brandId !== null) {
+                $br = $brandModel->find($brandId);
+                $brandName = $br ? (string)$br['name'] : '';
+            }
 
             if ($name === '' || $price === '' || $image === '') {
                 $error = "Nombre, precio e imagen son obligatorios.";
@@ -117,7 +144,8 @@ class AdminController {
             } else {
                 $ok = $productModel->update($id, [
                     'name' => $name,
-                    'brand' => $brand,
+                    'brand' => $brandName,     // legacy texto
+                    'brand_id' => $brandId,    // NUEVO
                     'category' => $category,
                     'price' => (float)$price,
                     'stock' => ($stock === '' ? 0 : (int)$stock),
@@ -133,7 +161,6 @@ class AdminController {
                 }
             }
 
-            // refrescar para re-pintar formulario
             $product = $productModel->find($id);
         }
 

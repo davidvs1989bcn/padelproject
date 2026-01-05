@@ -8,6 +8,13 @@ $user = $_SESSION['user'] ?? null;
 // Mantener filtros en el buscador
 $currentQ = trim($_GET['q'] ?? '');
 $currentSection = trim($_GET['section'] ?? '');
+
+// Mantener filtros (para no perderlos si buscas)
+$currentMin = trim($_GET['min_price'] ?? '');
+$currentMax = trim($_GET['max_price'] ?? '');
+$currentBrands = $_GET['brands'] ?? [];
+if (!is_array($currentBrands)) $currentBrands = [];
+$currentSort = trim($_GET['sort'] ?? '');
 ?>
 <!doctype html>
 <html lang="es">
@@ -35,37 +42,66 @@ $currentSection = trim($_GET['section'] ?? '');
       <span><?= APP_NAME ?></span>
     </a>
 
-    <!-- Botón hamburguesa (móvil) -->
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse gap-3" id="nav">
 
-      <!-- Secciones -->
+      <!-- ☰ MENÚ (estilo Amazon) -->
       <ul class="navbar-nav align-items-lg-center gap-lg-2">
-        <li class="nav-item">
-          <a class="nav-link" href="<?= BASE_URL ?>/products">Productos</a>
-        </li>
-
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-            Secciones
+          <a
+            class="nav-link d-inline-flex align-items-center gap-2 px-2 py-1 rounded amazon-menu-btn"
+            href="#"
+            role="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            <i class="fas fa-bars"></i>
+            <span class="fw-semibold">Menú</span>
           </a>
-          <ul class="dropdown-menu">
+
+          <ul class="dropdown-menu dropdown-menu-start amazon-menu-dropdown">
+            <li><h6 class="dropdown-header">Catálogo</h6></li>
+            <li><a class="dropdown-item" href="<?= BASE_URL ?>/products"><i class="fas fa-store me-2"></i>Ver catálogo</a></li>
+            <li><hr class="dropdown-divider"></li>
+
+            <li><h6 class="dropdown-header">Secciones</h6></li>
             <li><a class="dropdown-item" href="<?= BASE_URL ?>/products?section=palas">Palas</a></li>
             <li><a class="dropdown-item" href="<?= BASE_URL ?>/products?section=zapatillas">Zapatillas</a></li>
             <li><a class="dropdown-item" href="<?= BASE_URL ?>/products?section=ropa">Ropa</a></li>
             <li><a class="dropdown-item" href="<?= BASE_URL ?>/products?section=bolsas">Bolsas</a></li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li><h6 class="dropdown-header">Tu cuenta</h6></li>
+            <li><a class="dropdown-item" href="<?= BASE_URL ?>/cart"><i class="fas fa-shopping-cart me-2"></i>Carrito</a></li>
+
+            <?php if ($user): ?>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/orders"><i class="fas fa-receipt me-2"></i>Mis pedidos</a></li>
+              <?php if (($user['role'] ?? '') === 'admin'): ?>
+                <li><a class="dropdown-item" href="<?= BASE_URL ?>/admin"><i class="fas fa-user-shield me-2"></i>Admin</a></li>
+              <?php endif; ?>
+            <?php else: ?>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/login"><i class="fas fa-right-to-bracket me-2"></i>Login</a></li>
+            <?php endif; ?>
           </ul>
         </li>
       </ul>
 
-      <!-- Buscador -->
+      <!-- Buscador (manteniendo filtros) -->
       <form class="d-flex flex-grow-1" method="GET" action="<?= BASE_URL ?>/products">
         <input type="hidden" name="section" value="<?= htmlspecialchars($currentSection) ?>">
+        <input type="hidden" name="min_price" value="<?= htmlspecialchars($currentMin) ?>">
+        <input type="hidden" name="max_price" value="<?= htmlspecialchars($currentMax) ?>">
+        <input type="hidden" name="sort" value="<?= htmlspecialchars($currentSort) ?>">
+        <?php foreach ($currentBrands as $b): ?>
+          <input type="hidden" name="brands[]" value="<?= htmlspecialchars((string)$b) ?>">
+        <?php endforeach; ?>
+
         <input
-          class="form-control me-2"
+          class="form-control me-2 search-input"
           type="search"
           name="q"
           placeholder="Buscar productos..."

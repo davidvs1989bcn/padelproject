@@ -20,8 +20,21 @@
 
       <div class="col-md-4">
         <label class="form-label">Marca</label>
-        <input class="form-control" type="text" name="brand"
-               value="<?= htmlspecialchars($product['brand'] ?? '') ?>">
+        <select class="form-select" name="brand_id">
+          <option value="">-- Selecciona marca --</option>
+          <?php
+            $currentBrandId = (string)($product['brand_id'] ?? '');
+          ?>
+          <?php foreach (($brands ?? []) as $br): ?>
+            <?php
+              $bid = (int)($br['id'] ?? 0);
+              $bname = (string)($br['name'] ?? '');
+              $sel = ($currentBrandId === (string)$bid) ? 'selected' : '';
+            ?>
+            <option value="<?= $bid ?>" <?= $sel ?>><?= htmlspecialchars($bname) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <small class="text-muted">Guardado como brand_id.</small>
       </div>
 
       <div class="col-md-4">
@@ -92,25 +105,16 @@
 
   function validateImagePath() {
     const v = (image.value || '').trim();
-    if (v === '' || !v.startsWith('/public/img/products/')) {
-      image.setCustomValidity('bad');
-    } else {
-      image.setCustomValidity('');
-    }
+    if (v === '' || !v.startsWith('/public/img/products/')) image.setCustomValidity('bad');
+    else image.setCustomValidity('');
   }
 
   function validateStockInteger() {
     const v = (stock.value || '').trim();
-    if (v === '') {
-      stock.setCustomValidity('');
-      return;
-    }
+    if (v === '') { stock.setCustomValidity(''); return; }
     const n = Number(v);
-    if (!Number.isInteger(n) || n < 0) {
-      stock.setCustomValidity('bad');
-    } else {
-      stock.setCustomValidity('');
-    }
+    if (!Number.isInteger(n) || n < 0) stock.setCustomValidity('bad');
+    else stock.setCustomValidity('');
   }
 
   image.addEventListener('input', validateImagePath);
@@ -119,11 +123,7 @@
   form.addEventListener('submit', (e) => {
     validateImagePath();
     validateStockInteger();
-
-    if (!form.checkValidity()) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (!form.checkValidity()) { e.preventDefault(); e.stopPropagation(); }
     form.classList.add('was-validated');
   });
 })();

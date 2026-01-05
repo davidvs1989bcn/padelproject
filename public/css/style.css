@@ -1,6 +1,20 @@
 /* ====== Base ====== */
 body {
   background: #f6f7f9;
+  color: #111827;
+}
+
+a { text-decoration: none; }
+a:hover { text-decoration: none; }
+
+/* ====== Navbar ====== */
+.navbar {
+  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+}
+
+.navbar-brand span {
+  font-weight: 800;
+  letter-spacing: .2px;
 }
 
 /* Logo navbar */
@@ -8,6 +22,49 @@ body {
   width: 42px;
   height: 42px;
   object-fit: contain;
+}
+
+/* Botón tipo Amazon (Menú) */
+.amazon-menu-btn{
+  border: 1px solid rgba(255,255,255,.35);
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.amazon-menu-btn:hover{
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.55);
+  transform: translateY(-1px);
+}
+
+/* Dropdown más usable */
+.amazon-menu-dropdown{
+  min-width: 260px;
+  border: 0;
+  box-shadow: 0 18px 50px rgba(0,0,0,.18);
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 10px 0;
+}
+.dropdown-header{
+  color: #6b7280;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+.dropdown-item{
+  padding: 10px 14px;
+}
+.dropdown-item:hover{
+  background: #f3f4f6;
+}
+
+/* Buscador */
+.search-input{
+  border-radius: 12px;
+}
+
+/* Botón más “marketplace” */
+.btn-warning{
+  font-weight: 800;
+  border-radius: 12px;
 }
 
 /* ====== Cards de producto ====== */
@@ -47,17 +104,23 @@ body {
 
 .price{
   color: #e11d2e;
-  font-weight: 800;
+  font-weight: 900;
   font-size: 1.15rem;
 }
 
-/* Botón más “marketplace” */
-.btn-warning{
-  font-weight: 700;
-  border-radius: 10px;
+/* ====== Sidebar filtros ====== */
+.card {
+  border-radius: 16px;
 }
 
-/* Tablas */
+.form-select, .form-control {
+  border-radius: 12px;
+}
+
+.form-check-input {
+  border-radius: 6px;
+}
+
 .table {
   background: #fff;
   border-radius: 12px;
@@ -73,4 +136,32 @@ body {
   border-radius: 10px;
   border: 1px solid #eee;
   padding: 6px;
+}
+
+/* ===== Navbar dropdown (Menú) ===== */
+.navbar .dropdown-menu{
+  z-index: 2000;            /* mantiene el menú por encima del contenido */
+  min-width: 220px;         /* evita que se haga enorme */
+  max-width: 260px;
+}
+
+/* evita que el dropdown quede demasiado ancho por el contenido */
+.navbar .dropdown-menu .dropdown-item,
+.navbar .dropdown-menu .dropdown-header{
+  white-space: nowrap;
+}
+
+/* ===== Panel filtros ===== */
+.filters-card{
+  position: relative;
+  z-index: 1;               /* contenido normal */
+}
+
+/* En pantallas grandes: fija y crea “columna” de filtros */
+@media (min-width: 992px){
+  .filters-card{
+    position: sticky;
+    top: 90px;              /* baja un poco bajo la navbar */
+    z-index: 10;
+  }
 }

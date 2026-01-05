@@ -19,19 +19,45 @@ class ProductController {
         $q = trim($_GET['q'] ?? '');
         $section = trim($_GET['section'] ?? '');
 
+        $minPrice = trim($_GET['min_price'] ?? '');
+        $maxPrice = trim($_GET['max_price'] ?? '');
+        $sort = trim($_GET['sort'] ?? '');
+
+        // brands[] ahora son IDs
+        $brands = $_GET['brands'] ?? [];
+        if (!is_array($brands)) $brands = [];
+        $brands = array_values(array_filter(array_map('intval', $brands), fn($v) => $v > 0));
+
+        // Usamos SIEMPRE el filter (ya cubre todo: q/section/precio/marca/sort)
+        $products = $productModel->filterProducts([
+            'q' => $q,
+            'section' => $section,
+            'min_price' => $minPrice,
+            'max_price' => $maxPrice,
+            'brands' => $brands,
+            'sort' => $sort
+        ]);
+
         if ($q !== '' && $section !== '') {
-            $products = $productModel->searchInSection($q, $section);
             $title = "Resultados en " . $this->sectionLabel($section) . " para: " . $q;
         } elseif ($q !== '') {
-            $products = $productModel->searchByName($q);
             $title = "Resultados para: " . $q;
         } elseif ($section !== '') {
-            $products = $productModel->allBySection($section);
             $title = "Sección: " . $this->sectionLabel($section);
         } else {
-            $products = $productModel->all();
             $title = "Catálogo Completo";
         }
+
+        // marcas disponibles para el sidebar
+        $brandsList = $productModel->brandsList([
+            'q' => $q,
+            'section' => $section,
+            'min_price' => $minPrice,
+            'max_price' => $maxPrice
+        ]);
+
+        // valores para la vista
+        $selectedBrands = $brands;
 
         require 'views/products/index.php';
     }
@@ -49,7 +75,6 @@ class ProductController {
             return;
         }
 
-        // Detectar si usa tallas para cargar stock por talla
         $category = mb_strtolower(trim($product['category'] ?? ''), 'UTF-8');
         $isClothing = ($category === 'ropa');
         $isShoes = ($category === 'zapatillas');

@@ -9,12 +9,25 @@ class Product {
     }
 
     public function all(): array {
-        $stmt = $this->conn->query("SELECT * FROM products ORDER BY id DESC");
+        $sql = "
+            SELECT p.*, COALESCE(b.name, p.brand) AS brand_name
+            FROM products p
+            LEFT JOIN brands b ON b.id = p.brand_id
+            ORDER BY p.id DESC
+        ";
+        $stmt = $this->conn->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function find(int $id): ?array {
-        $stmt = $this->conn->prepare("SELECT * FROM products WHERE id = ? LIMIT 1");
+        $sql = "
+            SELECT p.*, COALESCE(b.name, p.brand) AS brand_name
+            FROM products p
+            LEFT JOIN brands b ON b.id = p.brand_id
+            WHERE p.id = ?
+            LIMIT 1
+        ";
+        $stmt = $this->conn->prepare($sql);
         $stmt->execute([$id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
@@ -23,7 +36,14 @@ class Product {
     // ========= BUSCADOR =========
     public function searchByName(string $q): array {
         $qLike = '%' . $q . '%';
-        $stmt = $this->conn->prepare("SELECT * FROM products WHERE name LIKE ? ORDER BY id DESC");
+        $sql = "
+            SELECT p.*, COALESCE(b.name, p.brand) AS brand_name
+            FROM products p
+            LEFT JOIN brands b ON b.id = p.brand_id
+            WHERE p.name LIKE ?
+            ORDER BY p.id DESC
+        ";
+        $stmt = $this->conn->prepare($sql);
         $stmt->execute([$qLike]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -36,22 +56,29 @@ class Product {
         $params = [];
 
         if ($section === 'ropa') {
-            $where = "category = ?";
+            $where = "p.category = ?";
             $params = ['Ropa'];
         } elseif ($section === 'bolsas') {
-            $where = "(category = ? OR category = ?)";
+            $where = "(p.category = ? OR p.category = ?)";
             $params = ['Bolsas', 'Paleteros'];
         } elseif ($section === 'zapatillas') {
-            $where = "category = ?";
+            $where = "p.category = ?";
             $params = ['Zapatillas'];
         } elseif ($section === 'palas') {
-            $where = "category = ?";
+            $where = "p.category = ?";
             $params = ['Palas'];
         } else {
             return $this->all();
         }
 
-        $stmt = $this->conn->prepare("SELECT * FROM products WHERE $where ORDER BY id DESC");
+        $sql = "
+            SELECT p.*, COALESCE(b.name, p.brand) AS brand_name
+            FROM products p
+            LEFT JOIN brands b ON b.id = p.brand_id
+            WHERE $where
+            ORDER BY p.id DESC
+        ";
+        $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -64,27 +91,160 @@ class Product {
         $params = [];
 
         if ($section === 'ropa') {
-            $where = "category = ? AND name LIKE ?";
+            $where = "p.category = ? AND p.name LIKE ?";
             $params = ['Ropa', $qLike];
         } elseif ($section === 'bolsas') {
-            $where = "(category = ? OR category = ?) AND name LIKE ?";
+            $where = "(p.category = ? OR p.category = ?) AND p.name LIKE ?";
             $params = ['Bolsas', 'Paleteros', $qLike];
         } elseif ($section === 'zapatillas') {
-            $where = "category = ? AND name LIKE ?";
+            $where = "p.category = ? AND p.name LIKE ?";
             $params = ['Zapatillas', $qLike];
         } elseif ($section === 'palas') {
-            $where = "category = ? AND name LIKE ?";
+            $where = "p.category = ? AND p.name LIKE ?";
             $params = ['Palas', $qLike];
         } else {
             return $this->searchByName($q);
         }
 
-        $stmt = $this->conn->prepare("SELECT * FROM products WHERE $where ORDER BY id DESC");
+        $sql = "
+            SELECT p.*, COALESCE(b.name, p.brand) AS brand_name
+            FROM products p
+            LEFT JOIN brands b ON b.id = p.brand_id
+            WHERE $where
+            ORDER BY p.id DESC
+        ";
+        $stmt = $this->conn->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // ===== STOCK POR TALLA (tabla product_sizes) =====
+    // ========= FILTROS =========
+    public function filterProducts(array $f): array {
+        $q = trim((string)($f['q'] ?? ''));
+        $section = trim((string)($f['section'] ?? ''));
+        $minPrice = trim((string)($f['min_price'] ?? ''));
+        $maxPrice = trim((string)($f['max_price'] ?? ''));
+        $brandIds = $f['brands'] ?? [];
+        if (!is_array($brandIds)) $brandIds = [];
+        $brandIds = array_values(array_filter(array_map('intval', $brandIds), fn($v) => $v > 0));
+        $sort = trim((string)($f['sort'] ?? ''));
+
+        $where = [];
+        $params = [];
+
+        $sec = mb_strtolower(trim($section), 'UTF-8');
+        if ($sec === 'ropa') {
+            $where[] = "p.category = ?";
+            $params[] = 'Ropa';
+        } elseif ($sec === 'bolsas') {
+            $where[] = "(p.category = ? OR p.category = ?)";
+            $params[] = 'Bolsas';
+            $params[] = 'Paleteros';
+        } elseif ($sec === 'zapatillas') {
+            $where[] = "p.category = ?";
+            $params[] = 'Zapatillas';
+        } elseif ($sec === 'palas') {
+            $where[] = "p.category = ?";
+            $params[] = 'Palas';
+        }
+
+        if ($q !== '') {
+            $where[] = "p.name LIKE ?";
+            $params[] = '%' . $q . '%';
+        }
+
+        if ($minPrice !== '' && is_numeric($minPrice)) {
+            $where[] = "p.price >= ?";
+            $params[] = (float)$minPrice;
+        }
+        if ($maxPrice !== '' && is_numeric($maxPrice)) {
+            $where[] = "p.price <= ?";
+            $params[] = (float)$maxPrice;
+        }
+
+        if (!empty($brandIds)) {
+            $placeholders = implode(',', array_fill(0, count($brandIds), '?'));
+            $where[] = "p.brand_id IN ($placeholders)";
+            foreach ($brandIds as $bid) $params[] = (int)$bid;
+        }
+
+        $sql = "
+            SELECT p.*, COALESCE(b.name, p.brand) AS brand_name
+            FROM products p
+            LEFT JOIN brands b ON b.id = p.brand_id
+        ";
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+
+        $orderBy = " ORDER BY p.id DESC";
+        if ($sort === 'price_asc') $orderBy = " ORDER BY p.price ASC, p.id DESC";
+        elseif ($sort === 'price_desc') $orderBy = " ORDER BY p.price DESC, p.id DESC";
+        elseif ($sort === 'name_asc') $orderBy = " ORDER BY p.name ASC, p.id DESC";
+        elseif ($sort === 'newest') $orderBy = " ORDER BY p.created_at DESC, p.id DESC";
+
+        $sql .= $orderBy;
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function brandsList(array $f = []): array {
+        $q = trim((string)($f['q'] ?? ''));
+        $section = trim((string)($f['section'] ?? ''));
+        $minPrice = trim((string)($f['min_price'] ?? ''));
+        $maxPrice = trim((string)($f['max_price'] ?? ''));
+
+        $where = [];
+        $params = [];
+
+        $sec = mb_strtolower(trim($section), 'UTF-8');
+        if ($sec === 'ropa') {
+            $where[] = "p.category = ?";
+            $params[] = 'Ropa';
+        } elseif ($sec === 'bolsas') {
+            $where[] = "(p.category = ? OR p.category = ?)";
+            $params[] = 'Bolsas';
+            $params[] = 'Paleteros';
+        } elseif ($sec === 'zapatillas') {
+            $where[] = "p.category = ?";
+            $params[] = 'Zapatillas';
+        } elseif ($sec === 'palas') {
+            $where[] = "p.category = ?";
+            $params[] = 'Palas';
+        }
+
+        if ($q !== '') {
+            $where[] = "p.name LIKE ?";
+            $params[] = '%' . $q . '%';
+        }
+
+        if ($minPrice !== '' && is_numeric($minPrice)) {
+            $where[] = "p.price >= ?";
+            $params[] = (float)$minPrice;
+        }
+        if ($maxPrice !== '' && is_numeric($maxPrice)) {
+            $where[] = "p.price <= ?";
+            $params[] = (float)$maxPrice;
+        }
+
+        $sql = "
+            SELECT DISTINCT b.id, b.name
+            FROM products p
+            INNER JOIN brands b ON b.id = p.brand_id
+        ";
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+        $sql .= " ORDER BY b.name ASC";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // ===== STOCK POR TALLA =====
     public function sizeStocks(int $productId): array {
         $stmt = $this->conn->prepare(
             "SELECT size, stock FROM product_sizes WHERE product_id = ?"
@@ -96,7 +256,7 @@ class Product {
         foreach ($rows as $r) {
             $map[(string)$r['size']] = (int)$r['stock'];
         }
-        return $map; // ['M' => 10, 'L' => 0, ...]
+        return $map;
     }
 
     public function sizeStock(int $productId, string $size): int {
@@ -119,10 +279,6 @@ class Product {
         return (int)($row['total_stock'] ?? 0);
     }
 
-    /**
-     * Descontar stock GENERAL (products.stock) de forma segura.
-     * Devuelve true si descuenta, false si no había suficiente.
-     */
     public function decrementGeneralStock(int $productId, int $qty): bool {
         $stmt = $this->conn->prepare(
             "UPDATE products
@@ -133,10 +289,6 @@ class Product {
         return $stmt->rowCount() > 0;
     }
 
-    /**
-     * Descontar stock POR TALLA (product_sizes.stock) de forma segura.
-     * Devuelve true si descuenta, false si no había suficiente.
-     */
     public function decrementSizeStock(int $productId, string $size, int $qty): bool {
         $stmt = $this->conn->prepare(
             "UPDATE product_sizes
@@ -149,13 +301,14 @@ class Product {
 
     // ========= ADMIN CRUD =========
     public function create(array $data): bool {
-        $sql = "INSERT INTO products (name, brand, category, price, stock, image, short_description, description)
-                VALUES (:name, :brand, :category, :price, :stock, :image, :short_description, :description)";
+        $sql = "INSERT INTO products (name, brand, brand_id, category, price, stock, image, short_description, description)
+                VALUES (:name, :brand, :brand_id, :category, :price, :stock, :image, :short_description, :description)";
         $stmt = $this->conn->prepare($sql);
 
         return $stmt->execute([
             ':name' => $data['name'],
-            ':brand' => $data['brand'],
+            ':brand' => $data['brand'] ?? '',
+            ':brand_id' => ($data['brand_id'] ?? null),
             ':category' => $data['category'],
             ':price' => $data['price'],
             ':stock' => $data['stock'],
@@ -169,6 +322,7 @@ class Product {
         $sql = "UPDATE products
                 SET name = :name,
                     brand = :brand,
+                    brand_id = :brand_id,
                     category = :category,
                     price = :price,
                     stock = :stock,
@@ -181,7 +335,8 @@ class Product {
         return $stmt->execute([
             ':id' => $id,
             ':name' => $data['name'],
-            ':brand' => $data['brand'],
+            ':brand' => $data['brand'] ?? '',
+            ':brand_id' => ($data['brand_id'] ?? null),
             ':category' => $data['category'],
             ':price' => $data['price'],
             ':stock' => $data['stock'],

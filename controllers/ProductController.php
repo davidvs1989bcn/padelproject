@@ -1,4 +1,5 @@
 <?php
+
 class ProductController {
 
     private function sectionLabel(string $section): string {
@@ -46,6 +47,21 @@ class ProductController {
             echo "<a class='btn btn-primary' href='".BASE_URL."/home'>Volver</a></div>";
             require 'views/layout/footer.php';
             return;
+        }
+
+        // Detectar si usa tallas para cargar stock por talla
+        $category = mb_strtolower(trim($product['category'] ?? ''), 'UTF-8');
+        $isClothing = ($category === 'ropa');
+        $isShoes = ($category === 'zapatillas');
+
+        $nameLower = mb_strtolower(trim($product['name'] ?? ''), 'UTF-8');
+        $isSocks = (strpos($nameLower, 'calcet') !== false);
+
+        $hasSizes = ($isClothing || $isShoes || $isSocks);
+
+        $sizeStocks = [];
+        if ($hasSizes) {
+            $sizeStocks = $productModel->sizeStocks((int)$product['id']);
         }
 
         require 'views/products/show.php';

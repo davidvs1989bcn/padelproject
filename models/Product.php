@@ -1,4 +1,5 @@
 <?php
+
 class Product {
     private PDO $conn;
 
@@ -9,23 +10,25 @@ class Product {
 
     public function all(): array {
         $stmt = $this->conn->query("SELECT * FROM products ORDER BY id DESC");
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function find(int $id): ?array {
-        $stmt = $this->conn->prepare("SELECT * FROM products WHERE id = ?");
+        $stmt = $this->conn->prepare("SELECT * FROM products WHERE id = ? LIMIT 1");
         $stmt->execute([$id]);
-        $row = $stmt->fetch();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
 
+    // ========= BUSCADOR =========
     public function searchByName(string $q): array {
         $qLike = '%' . $q . '%';
         $stmt = $this->conn->prepare("SELECT * FROM products WHERE name LIKE ? ORDER BY id DESC");
         $stmt->execute([$qLike]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // ========= SECCIONES =========
     public function allBySection(string $section): array {
         $section = mb_strtolower(trim($section), 'UTF-8');
 
@@ -50,7 +53,7 @@ class Product {
 
         $stmt = $this->conn->prepare("SELECT * FROM products WHERE $where ORDER BY id DESC");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function searchInSection(string $q, string $section): array {
@@ -78,69 +81,73 @@ class Product {
 
         $stmt = $this->conn->prepare("SELECT * FROM products WHERE $where ORDER BY id DESC");
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // =============================
-    // STOCK POR TALLA (product_sizes)
-    // =============================
+    // ===== STOCK POR TALLA (tabla product_sizes) =====
+    public function sizeStocks(int $productId): array {
+        $stmt = $this->conn->prepare(
+            "SELECT size, stock FROM product_sizes WHERE product_id = ?"
+        );
+        $stmt->execute([$productId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // ¿Existe fila de stock por talla para este producto+talla?
-    public function hasSizeStockRow(int $productId, string $size): bool {
-        $stmt = $this->conn->prepare("SELECT 1 FROM product_sizes WHERE product_id = ? AND size = ? LIMIT 1");
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(string)$r['size']] = (int)$r['stock'];
+        }
+        return $map; // ['M' => 10, 'L' => 0, ...]
+    }
+
+    public function sizeStock(int $productId, string $size): int {
+        $stmt = $this->conn->prepare(
+            "SELECT stock FROM product_sizes WHERE product_id = ? AND size = ? LIMIT 1"
+        );
         $stmt->execute([$productId, $size]);
-        return (bool)$stmt->fetchColumn();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (int)$row['stock'] : 0;
     }
 
-    // Devuelve stock por talla. Si no existe fila, devuelve null (significa: producto sin tallas controladas)
-    public function getSizeStock(int $productId, string $size): ?int {
-        $stmt = $this->conn->prepare("SELECT stock FROM product_sizes WHERE product_id = ? AND size = ? LIMIT 1");
-        $stmt->execute([$productId, $size]);
-        $val = $stmt->fetchColumn();
-        if ($val === false) return null;
-        return (int)$val;
+    public function totalSizeStock(int $productId): int {
+        $stmt = $this->conn->prepare(
+            "SELECT COALESCE(SUM(stock), 0) AS total_stock
+             FROM product_sizes
+             WHERE product_id = ?"
+        );
+        $stmt->execute([$productId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int)($row['total_stock'] ?? 0);
     }
 
-    // Descuenta stock por talla de forma segura (no deja negativos). Devuelve true si pudo, false si no hay stock.
-    public function decreaseSizeStock(int $productId, string $size, int $qty): bool {
-        if ($qty <= 0) return true;
-
-        $sql = "
-            UPDATE product_sizes
-            SET stock = stock - :qty
-            WHERE product_id = :pid
-              AND size = :size
-              AND stock >= :qty
-        ";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute([
-            ':qty' => $qty,
-            ':pid' => $productId,
-            ':size' => $size
-        ]);
-
+    /**
+     * Descontar stock GENERAL (products.stock) de forma segura.
+     * Devuelve true si descuenta, false si no había suficiente.
+     */
+    public function decrementGeneralStock(int $productId, int $qty): bool {
+        $stmt = $this->conn->prepare(
+            "UPDATE products
+             SET stock = stock - ?
+             WHERE id = ? AND stock >= ?"
+        );
+        $stmt->execute([$qty, $productId, $qty]);
         return $stmt->rowCount() > 0;
     }
 
-    // Suma stock por talla (por si luego haces devoluciones)
-    public function increaseSizeStock(int $productId, string $size, int $qty): bool {
-        if ($qty <= 0) return true;
-
-        $sql = "
-            UPDATE product_sizes
-            SET stock = stock + :qty
-            WHERE product_id = :pid
-              AND size = :size
-        ";
-        $stmt = $this->conn->prepare($sql);
-        return $stmt->execute([
-            ':qty' => $qty,
-            ':pid' => $productId,
-            ':size' => $size
-        ]);
+    /**
+     * Descontar stock POR TALLA (product_sizes.stock) de forma segura.
+     * Devuelve true si descuenta, false si no había suficiente.
+     */
+    public function decrementSizeStock(int $productId, string $size, int $qty): bool {
+        $stmt = $this->conn->prepare(
+            "UPDATE product_sizes
+             SET stock = stock - ?
+             WHERE product_id = ? AND size = ? AND stock >= ?"
+        );
+        $stmt->execute([$qty, $productId, $size, $qty]);
+        return $stmt->rowCount() > 0;
     }
 
-    // ADMIN CRUD
+    // ========= ADMIN CRUD =========
     public function create(array $data): bool {
         $sql = "INSERT INTO products (name, brand, category, price, stock, image, short_description, description)
                 VALUES (:name, :brand, :category, :price, :stock, :image, :short_description, :description)";

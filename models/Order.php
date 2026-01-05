@@ -1,4 +1,5 @@
 <?php
+
 class Order {
     private PDO $conn;
 
@@ -8,10 +9,12 @@ class Order {
     }
 
     public function create(int $userId, array $cart, float $total): int {
-        $this->conn->beginTransaction();
+        $productModel = new Product();
 
         try {
-            // 1) Insert pedido
+            $this->conn->beginTransaction();
+
+            // Crear pedido
             $stmt = $this->conn->prepare(
                 "INSERT INTO orders (user_id, total, status, created_at)
                  VALUES (?, ?, 'paid', NOW())"
@@ -19,55 +22,58 @@ class Order {
             $stmt->execute([$userId, $total]);
             $orderId = (int)$this->conn->lastInsertId();
 
-            // 2) Descontar stock por talla (si aplica)
-            $productModel = new Product();
-
-            foreach ($cart as $item) {
-                $pid = (int)($item['id'] ?? 0);
-                $qty = (int)($item['quantity'] ?? 0);
-                $size = trim((string)($item['size'] ?? ''));
-
-                if ($pid <= 0 || $qty <= 0) continue;
-
-                // solo si tiene talla y existe fila en product_sizes
-                if ($size !== '' && $productModel->hasSizeStockRow($pid, $size)) {
-                    $ok = $productModel->decreaseSizeStock($pid, $size, $qty);
-                    if (!$ok) {
-                        // No hay stock suficiente
-                        $this->conn->rollBack();
-                        throw new Exception("No hay stock suficiente para el producto #{$pid} talla {$size}.");
-                    }
-                }
-            }
-
-            // 3) Insert items
+            // Insert items (con size)
             $itemStmt = $this->conn->prepare(
                 "INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity, subtotal, size)
                  VALUES (?, ?, ?, ?, ?, ?, ?)"
             );
 
             foreach ($cart as $item) {
-                $subtotal = ((float)$item['price']) * ((int)$item['quantity']);
+                $pid = (int)($item['id'] ?? 0);
+                $qty = (int)($item['quantity'] ?? 0);
+                $size = trim((string)($item['size'] ?? ''));
+
+                if ($pid <= 0 || $qty <= 0) {
+                    continue;
+                }
+
+                // 1) Descontar stock en BD (si falla -> rollback)
+                if ($size !== '') {
+                    // Stock por talla
+                    $ok = $productModel->decrementSizeStock($pid, $size, $qty);
+                    if (!$ok) {
+                        throw new Exception("No hay stock suficiente para la talla $size.");
+                    }
+                } else {
+                    // Stock general
+                    $ok = $productModel->decrementGeneralStock($pid, $qty);
+                    if (!$ok) {
+                        throw new Exception("No hay stock suficiente para este producto.");
+                    }
+                }
+
+                // 2) Guardar item
+                $subtotal = ((float)$item['price']) * $qty;
 
                 $itemStmt->execute([
                     $orderId,
-                    (int)$item['id'],
-                    (string)$item['name'],
-                    (float)$item['price'],
-                    (int)$item['quantity'],
+                    $pid,
+                    (string)($item['name'] ?? ''),
+                    (float)($item['price'] ?? 0),
+                    $qty,
                     (float)$subtotal,
-                    (string)($item['size'] ?? '')
+                    $size
                 ]);
             }
 
             $this->conn->commit();
             return $orderId;
 
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             if ($this->conn->inTransaction()) {
                 $this->conn->rollBack();
             }
-            // Re-lanzamos para que el controller lo muestre bonito
+            // Re-lanzamos para que el controller muestre error
             throw $e;
         }
     }
@@ -95,14 +101,7 @@ class Order {
                     WHERE oi3.order_id = o.id
                     ORDER BY oi3.id ASC
                     LIMIT 1
-                ) AS first_image,
-                (
-                    SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
-                    FROM order_items oi4
-                    WHERE oi4.order_id = o.id
-                      AND oi4.size IS NOT NULL
-                      AND TRIM(oi4.size) <> ''
-                ) AS has_sizes
+                ) AS first_image
             FROM orders o
             WHERE o.user_id = ?
             ORDER BY o.id DESC

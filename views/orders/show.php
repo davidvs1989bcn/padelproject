@@ -23,7 +23,16 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
 ?>
 
 <div class="d-flex align-items-center justify-content-between mb-3">
-  <h2 class="m-0">Pedido #<?= (int)$order['id'] ?></h2>
+  <div>
+    <h2 class="m-0">Pedido #<?= (int)$order['id'] ?></h2>
+    <div class="text-muted small">
+      <?= $itemCount ?> artículo(s)
+      <?php if (!empty($order['created_at'])): ?>
+        • <?= formatDateES($order['created_at']) ?>
+      <?php endif; ?>
+    </div>
+  </div>
+
   <a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/orders">
     <i class="fas fa-arrow-left"></i> Volver
   </a>
@@ -45,7 +54,6 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
       <div class="col-md-4 text-md-end">
         <div class="small text-muted">Total</div>
         <div class="fs-4 fw-bold"><?= number_format((float)$order['total'], 2) ?> €</div>
-        <div class="small text-muted"><?= $itemCount ?> artículo(s)</div>
       </div>
     </div>
   </div>
@@ -76,28 +84,36 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
             <tr>
               <td>
                 <div class="border rounded bg-white d-flex align-items-center justify-content-center" style="width:90px;height:90px;">
-                  <img src="<?= $imgSrc ?>"
-                       alt="<?= htmlspecialchars($it['product_name']) ?>"
-                       style="width:80px;height:80px;object-fit:contain;"
-                       onerror="this.onerror=null;this.src='<?= ASSETS_URL ?>/img/products/placeholder.png';">
+                  <img
+                    src="<?= $imgSrc ?>"
+                    alt="<?= htmlspecialchars($it['product_name'] ?? 'Producto') ?>"
+                    style="width:80px;height:80px;object-fit:contain;"
+                    onerror="this.onerror=null;this.src='<?= ASSETS_URL ?>/img/products/placeholder.png';"
+                  >
                 </div>
               </td>
 
               <td>
-                <div class="fw-semibold"><?= htmlspecialchars($it['product_name']) ?></div>
+                <div class="fw-semibold"><?= htmlspecialchars($it['product_name'] ?? '') ?></div>
 
                 <div class="small text-muted">
-                  <?= htmlspecialchars($it['product_brand'] ?? '') ?>
-                  <?= !empty($it['product_category']) ? ' • ' . htmlspecialchars($it['product_category']) : '' ?>
-                  <?php if ($size !== ''): ?>
-                    • Talla: <strong><?= htmlspecialchars($size) ?></strong>
-                  <?php endif; ?>
+                  <?php
+                    $meta = [];
+                    $brand = trim((string)($it['product_brand'] ?? ''));
+                    $cat = trim((string)($it['product_category'] ?? ''));
+
+                    if ($brand !== '') $meta[] = htmlspecialchars($brand);
+                    if ($cat !== '') $meta[] = htmlspecialchars($cat);
+                    if ($size !== '') $meta[] = 'Talla: <strong>' . htmlspecialchars($size) . '</strong>';
+
+                    echo implode(' • ', $meta);
+                  ?>
                 </div>
               </td>
 
-              <td class="text-end"><?= number_format((float)$it['unit_price'], 2) ?> €</td>
-              <td class="text-end"><?= (int)$it['quantity'] ?></td>
-              <td class="text-end fw-semibold"><?= number_format((float)$it['subtotal'], 2) ?> €</td>
+              <td class="text-end"><?= number_format((float)($it['unit_price'] ?? 0), 2) ?> €</td>
+              <td class="text-end"><?= (int)($it['quantity'] ?? 0) ?></td>
+              <td class="text-end fw-semibold"><?= number_format((float)($it['subtotal'] ?? 0), 2) ?> €</td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -112,7 +128,7 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
   </div>
 </div>
 
-<div class="mt-4 d-flex gap-2">
+<div class="mt-4 d-flex flex-wrap gap-2">
   <a class="btn btn-primary" href="<?= BASE_URL ?>/products">
     <i class="fas fa-store"></i> Seguir comprando
   </a>

@@ -1,4 +1,5 @@
 <?php
+
 class CartController {
 
     private function getCart(): array {
@@ -10,6 +11,28 @@ class CartController {
 
     private function saveCart(array $cart): void {
         $_SESSION['cart'] = $cart;
+    }
+
+    // Cantidad en carrito para un producto SIN tallas (sumatorio de todas sus líneas)
+    private function cartQtyForProduct(array $cart, int $productId): int {
+        $sum = 0;
+        foreach ($cart as $it) {
+            if ((int)($it['id'] ?? 0) === $productId) {
+                $sum += (int)($it['quantity'] ?? 0);
+            }
+        }
+        return $sum;
+    }
+
+    // Cantidad en carrito para un producto CON talla concreta
+    private function cartQtyForProductSize(array $cart, int $productId, string $size): int {
+        $sum = 0;
+        foreach ($cart as $it) {
+            if ((int)($it['id'] ?? 0) === $productId && (string)($it['size'] ?? '') === $size) {
+                $sum += (int)($it['quantity'] ?? 0);
+            }
+        }
+        return $sum;
     }
 
     public function index(): void {
@@ -37,56 +60,67 @@ class CartController {
             exit;
         }
 
+        $cart = $this->getCart();
+
+        // ====== VALIDACIÓN DE TALLA ======
         $category = mb_strtolower(trim($p['category'] ?? ''), 'UTF-8');
         $isClothing = ($category === 'ropa');
         $isShoes = ($category === 'zapatillas');
 
-        // ✅ Calcetines -> talla de zapatillas (37.5 a 46)
+        // Calcetines -> talla de zapatillas
         $nameLower = mb_strtolower(trim($p['name'] ?? ''), 'UTF-8');
         $isSocks = (strpos($nameLower, 'calcet') !== false);
 
         $size = trim($_POST['size'] ?? '');
 
-        // Validar talla si corresponde
+        // Validar talla si aplica
         if ($isShoes || $isSocks) {
             $allowed = ['37.5','38','39','40','41','42','43','44','45','46'];
             if ($size === '' || !in_array($size, $allowed, true)) {
+                $_SESSION['flash_error'] = "Selecciona una talla válida.";
                 header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
             }
         } elseif ($isClothing) {
             $allowed = ['S','M','L','XL','XXL'];
             if ($size === '' || !in_array($size, $allowed, true)) {
+                $_SESSION['flash_error'] = "Selecciona una talla válida.";
                 header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
             }
         } else {
-            // No talla en palas/bolsas/pelotas
             $size = '';
         }
 
-        $cart = $this->getCart();
+        // ====== CONTROL DE STOCK ======
+        $hasSizes = ($isClothing || $isShoes || $isSocks);
 
-        // Clave única por producto+talla (ej: "12|XL")
-        $key = $id . '|' . $size;
+        if ($hasSizes) {
+            // Stock por talla
+            $stockSize = $productModel->sizeStock($id, $size);
+            $inCartSize = $this->cartQtyForProductSize($cart, $id, $size);
+            $available = $stockSize - $inCartSize;
 
-        // ==========================
-        // ✅ CONTROL STOCK POR TALLA
-        // ==========================
-        // Solo aplicamos control si este producto+talla existe en product_sizes
-        // (si no existe fila, lo tratamos como "sin control por talla")
-        if ($size !== '' && $productModel->hasSizeStockRow($id, $size)) {
-            $currentQtyInCart = isset($cart[$key]) ? (int)$cart[$key]['quantity'] : 0;
-            $desiredQty = $currentQtyInCart + 1;
+            if ($available <= 0) {
+                $_SESSION['flash_error'] = "Lo sentimos, no queda stock para la talla $size.";
+                header("Location: " . BASE_URL . "/product/" . $id);
+                exit;
+            }
+        } else {
+            // Stock general
+            $stock = (int)($p['stock'] ?? 0);
+            $inCart = $this->cartQtyForProduct($cart, $id);
+            $available = $stock - $inCart;
 
-            $stock = $productModel->getSizeStock($id, $size); // aquí ya no será null porque hasSizeStockRow true
-            $stock = (int)$stock;
-
-            if ($desiredQty > $stock) {
-                header("Location: " . BASE_URL . "/product/" . $id . "?err=stock");
+            if ($available <= 0) {
+                $_SESSION['flash_error'] = "Lo sentimos, este producto está agotado.";
+                header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
             }
         }
+
+        // Clave única por producto+talla
+        $key = $id . '|' . $size;
 
         if (!isset($cart[$key])) {
             $cart[$key] = [
@@ -128,9 +162,6 @@ class CartController {
             header("Location: " . BASE_URL . "/cart");
             exit;
         }
-
-        // (opcional) aquí también podríamos validar que no se suba a más del stock,
-        // pero lo importante es bloquear en checkout (lo haremos en Order::create)
 
         foreach ($_POST['qty'] as $key => $qty) {
             $key = (string)$key;

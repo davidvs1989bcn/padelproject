@@ -18,17 +18,14 @@ class ProductController {
 
         $q = trim($_GET['q'] ?? '');
         $section = trim($_GET['section'] ?? '');
-
         $minPrice = trim($_GET['min_price'] ?? '');
         $maxPrice = trim($_GET['max_price'] ?? '');
         $sort = trim($_GET['sort'] ?? '');
 
-        // brands[] ahora son IDs
         $brands = $_GET['brands'] ?? [];
         if (!is_array($brands)) $brands = [];
         $brands = array_values(array_filter(array_map('intval', $brands), fn($v) => $v > 0));
 
-        // Usamos SIEMPRE el filter (ya cubre todo: q/section/precio/marca/sort)
         $products = $productModel->filterProducts([
             'q' => $q,
             'section' => $section,
@@ -37,6 +34,11 @@ class ProductController {
             'brands' => $brands,
             'sort' => $sort
         ]);
+
+        foreach ($products as &$p) {
+            $p['has_sizes'] = $productModel->hasSizes((int)$p['id']);
+        }
+        unset($p);
 
         if ($q !== '' && $section !== '') {
             $title = "Resultados en " . $this->sectionLabel($section) . " para: " . $q;
@@ -48,7 +50,6 @@ class ProductController {
             $title = "Catálogo Completo";
         }
 
-        // marcas disponibles para el sidebar
         $brandsList = $productModel->brandsList([
             'q' => $q,
             'section' => $section,
@@ -56,7 +57,6 @@ class ProductController {
             'max_price' => $maxPrice
         ]);
 
-        // valores para la vista
         $selectedBrands = $brands;
 
         require 'views/products/index.php';
@@ -64,29 +64,37 @@ class ProductController {
 
     public function show(int $id): void {
         $productModel = new Product();
-        $product = $productModel->find($id);
+        $reviewModel = new Review();
 
+        $product = $productModel->find($id);
         if (!$product) {
             http_response_code(404);
             require 'views/layout/header.php';
-            echo "<div class='container py-5 text-center'><h1>Producto no encontrado</h1>";
-            echo "<a class='btn btn-primary' href='".BASE_URL."/home'>Volver</a></div>";
+            echo "<div class='container py-5 text-center'>
+                    <h1>Producto no encontrado</h1>
+                    <a class='btn btn-primary' href='".BASE_URL."/products'>Volver</a>
+                  </div>";
             require 'views/layout/footer.php';
             return;
         }
 
-        $category = mb_strtolower(trim($product['category'] ?? ''), 'UTF-8');
-        $isClothing = ($category === 'ropa');
-        $isShoes = ($category === 'zapatillas');
-
-        $nameLower = mb_strtolower(trim($product['name'] ?? ''), 'UTF-8');
-        $isSocks = (strpos($nameLower, 'calcet') !== false);
-
-        $hasSizes = ($isClothing || $isShoes || $isSocks);
-
+        // ===== TALLAS =====
+        $hasSizes = $productModel->hasSizes((int)$product['id']);
         $sizeStocks = [];
         if ($hasSizes) {
             $sizeStocks = $productModel->sizeStocks((int)$product['id']);
+        }
+
+        // ===== RESEÑAS =====
+        $reviewStats = $reviewModel->productSummary((int)$product['id']);
+        $reviews = $reviewModel->productReviews((int)$product['id']);
+
+        $canReview = false;
+        if (isset($_SESSION['user'])) {
+            $canReview = $reviewModel->canUserReviewProduct(
+                (int)$product['id'],
+                (int)$_SESSION['user']['id']
+            );
         }
 
         require 'views/products/show.php';

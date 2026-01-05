@@ -20,9 +20,6 @@ function statusBadge(string $status): array {
 
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h2 class="m-0">Mis pedidos</h2>
-  <a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/products">
-    <i class="fas fa-store"></i> Seguir comprando
-  </a>
 </div>
 
 <?php if (empty($orders)): ?>

@@ -17,7 +17,7 @@ class CartController {
     private function cartQtyForProduct(array $cart, int $productId): int {
         $sum = 0;
         foreach ($cart as $it) {
-            if ((int)($it['id'] ?? 0) === $productId) {
+            if ((int)($it['id'] ?? 0) === $productId && (string)($it['size'] ?? '') === '') {
                 $sum += (int)($it['quantity'] ?? 0);
             }
         }
@@ -62,42 +62,35 @@ class CartController {
 
         $cart = $this->getCart();
 
-        // ====== VALIDACIÓN DE TALLA ======
-        $category = mb_strtolower(trim($p['category'] ?? ''), 'UTF-8');
-        $isClothing = ($category === 'ropa');
-        $isShoes = ($category === 'zapatillas');
+        // ✅ MODO AUTOMÁTICO: si hay filas en product_sizes -> requiere talla
+        $hasSizes = $productModel->hasSizes($id);
 
-        // Calcetines -> talla de zapatillas
-        $nameLower = mb_strtolower(trim($p['name'] ?? ''), 'UTF-8');
-        $isSocks = (strpos($nameLower, 'calcet') !== false);
+        $size = trim((string)($_POST['size'] ?? ''));
 
-        $size = trim($_POST['size'] ?? '');
-
-        // Validar talla si aplica
-        if ($isShoes || $isSocks) {
-            $allowed = ['37.5','38','39','40','41','42','43','44','45','46'];
-            if ($size === '' || !in_array($size, $allowed, true)) {
-                $_SESSION['flash_error'] = "Selecciona una talla válida.";
+        // ====== VALIDACIÓN DE TALLA (automática por BD) ======
+        if ($hasSizes) {
+            if ($size === '') {
+                $_SESSION['flash_error'] = "Selecciona una talla.";
                 header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
             }
-        } elseif ($isClothing) {
-            $allowed = ['S','M','L','XL','XXL'];
-            if ($size === '' || !in_array($size, $allowed, true)) {
-                $_SESSION['flash_error'] = "Selecciona una talla válida.";
+
+            // Validar que esa talla exista realmente en BD (si no, sizeStock devuelve 0)
+            $stockSize = (int)$productModel->sizeStock($id, $size);
+            if ($stockSize <= 0) {
+                $_SESSION['flash_error'] = "La talla seleccionada no está disponible.";
                 header("Location: " . BASE_URL . "/product/" . $id);
                 exit;
             }
         } else {
+            // Producto sin tallas -> forzamos size vacío
             $size = '';
         }
 
         // ====== CONTROL DE STOCK ======
-        $hasSizes = ($isClothing || $isShoes || $isSocks);
-
         if ($hasSizes) {
             // Stock por talla
-            $stockSize = $productModel->sizeStock($id, $size);
+            $stockSize = (int)$productModel->sizeStock($id, $size);
             $inCartSize = $this->cartQtyForProductSize($cart, $id, $size);
             $available = $stockSize - $inCartSize;
 
@@ -119,7 +112,7 @@ class CartController {
             }
         }
 
-        // Clave única por producto+talla
+        // Clave única por producto+talla (si no hay talla, quedará "id|")
         $key = $id . '|' . $size;
 
         if (!isset($cart[$key])) {
@@ -163,6 +156,7 @@ class CartController {
             exit;
         }
 
+        // 1) Aplicamos cantidades (sin validar aún) + eliminamos las de 0
         foreach ($_POST['qty'] as $key => $qty) {
             $key = (string)$key;
             $qty = (int)$qty;
@@ -174,6 +168,107 @@ class CartController {
             } else {
                 $cart[$key]['quantity'] = $qty;
             }
+        }
+
+        // 2) Validación de stock (automática por BD)
+        $productModel = new Product();
+        $errors = [];
+
+        // Acumulamos por producto sin talla y por producto+talla
+        $sumByProduct = [];      // productId => totalQty (solo líneas sin talla)
+        $sumByProdSize = [];     // "id|size" => totalQty
+
+        foreach ($cart as $it) {
+            $pid  = (int)($it['id'] ?? 0);
+            $size = (string)($it['size'] ?? '');
+            $qty  = (int)($it['quantity'] ?? 0);
+
+            if ($pid <= 0 || $qty <= 0) continue;
+
+            if ($size !== '') {
+                $k = $pid . '|' . $size;
+                $sumByProdSize[$k] = ($sumByProdSize[$k] ?? 0) + $qty;
+            } else {
+                $sumByProduct[$pid] = ($sumByProduct[$pid] ?? 0) + $qty;
+            }
+        }
+
+        // 2A) Validar líneas con talla
+        foreach ($sumByProdSize as $k => $wantedQty) {
+            [$pidStr, $size] = explode('|', $k, 2);
+            $pid = (int)$pidStr;
+
+            // Si el producto ya no tiene tallas, esta línea no tiene sentido
+            if (!$productModel->hasSizes($pid)) {
+                $errors[] = "Un producto del carrito requiere actualizarse (tallas). Se ha eliminado una línea.";
+                if (isset($cart[$k])) unset($cart[$k]);
+                continue;
+            }
+
+            $stockSize = (int)$productModel->sizeStock($pid, $size);
+
+            // Si la talla ya no existe (stockSize=0), fuera
+            if ($stockSize <= 0) {
+                $errors[] = "La talla $size ya no está disponible. Se ha eliminado del carrito.";
+                if (isset($cart[$k])) unset($cart[$k]);
+                continue;
+            }
+
+            if ($wantedQty > $stockSize) {
+                $errors[] = "Stock insuficiente para talla $size (producto #$pid). Máximo: $stockSize.";
+
+                // Solo debería existir una línea por pid|size (key única), ajustamos directo
+                if (isset($cart[$k])) {
+                    $cart[$k]['quantity'] = $stockSize; // como stockSize>0 aquí
+                }
+            }
+        }
+
+        // 2B) Validar líneas sin talla
+        foreach ($sumByProduct as $pid => $wantedQty) {
+            // Si el producto AHORA tiene tallas, no podemos validar sin talla -> lo quitamos
+            if ($productModel->hasSizes((int)$pid)) {
+                $errors[] = "Un producto del carrito necesita seleccionar talla. Se ha eliminado esa línea.";
+                foreach ($cart as $key => $it) {
+                    if ((int)($it['id'] ?? 0) === (int)$pid && (string)($it['size'] ?? '') === '') {
+                        unset($cart[$key]);
+                    }
+                }
+                continue;
+            }
+
+            $p = $productModel->find((int)$pid);
+            $stock = (int)($p['stock'] ?? 0);
+
+            if ($wantedQty > $stock) {
+                $errors[] = "Stock insuficiente para " . ($p['name'] ?? "producto #$pid") . ". Máximo: $stock.";
+
+                // Ajuste simple: reducimos líneas sin talla de ese producto hasta stock
+                $remaining = $stock;
+                foreach ($cart as $key => $it) {
+                    if ((int)($it['id'] ?? 0) !== (int)$pid) continue;
+                    if ((string)($it['size'] ?? '') !== '') continue;
+
+                    $q = (int)($it['quantity'] ?? 0);
+                    if ($q <= 0) { unset($cart[$key]); continue; }
+
+                    if ($remaining <= 0) {
+                        unset($cart[$key]);
+                        continue;
+                    }
+
+                    if ($q > $remaining) {
+                        $cart[$key]['quantity'] = $remaining;
+                        $remaining = 0;
+                    } else {
+                        $remaining -= $q;
+                    }
+                }
+            }
+        }
+
+        if (!empty($errors)) {
+            $_SESSION['flash_error'] = implode(" ", $errors);
         }
 
         $this->saveCart($cart);

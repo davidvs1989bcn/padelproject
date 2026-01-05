@@ -1,6 +1,19 @@
 <?php require_once 'views/layout/header.php'; ?>
 
-<h2 class="mb-3">Carrito</h2>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h2 class="m-0">Carrito</h2>
+
+  <a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/products">
+    <i class="fas fa-store"></i> Seguir comprando
+  </a>
+</div>
+
+<?php if (!empty($_SESSION['flash_error'])): ?>
+  <div class="alert alert-warning">
+    <i class="fas fa-triangle-exclamation"></i> <?= htmlspecialchars($_SESSION['flash_error']) ?>
+  </div>
+  <?php unset($_SESSION['flash_error']); ?>
+<?php endif; ?>
 
 <?php if (empty($cart)): ?>
   <div class="alert alert-info">Tu carrito está vacío.</div>
@@ -81,7 +94,7 @@
   </div>
 <?php else: ?>
   <a class="btn btn-success btn-lg" href="<?= BASE_URL ?>/checkout">
-    <i class="fas fa-credit-card"></i> Ir a checkout
+    <i class="fas fa-credit-card"></i> Finalizar compra
   </a>
 <?php endif; ?>
 

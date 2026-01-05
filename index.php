@@ -92,7 +92,6 @@ switch ($route) {
         $controller->register();
         break;
 
-    // ✅ AJAX comprobar email
     case '/check-email':
         $controller = new AuthController();
         $controller->checkEmail();
@@ -129,13 +128,26 @@ switch ($route) {
         $controller->show((int)$matches[1]);
         break;
 
+    // ✅ RESEÑAS (GET = form, POST = save)
+       // === RESEÑAS ===
+       // === RESEÑAS ===
+    case '/review':
+        $controller = new ReviewController();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $controller->create();
+        } else {
+            $controller->createForm();
+        }
+        break;
+
+
+
     // === ADMIN ===
     case '/admin':
         $controller = new AdminController();
         $controller->dashboard();
         break;
 
-    // === ADMIN CRUD PRODUCTOS ===
     case '/admin/products':
         $controller = new AdminController();
         $controller->products();
@@ -151,11 +163,21 @@ switch ($route) {
         $controller->edit((int)$matches[1]);
         break;
 
-    // ✅ BORRADO POR POST (lo que usa tu formulario)
     case '/admin/products/delete':
         $controller = new AdminController();
         $controller->delete();
         break;
+
+        // === RESEÑAS ===
+case '/review':
+    $controller = new ReviewController();
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $controller->store();
+    } else {
+        $controller->createForm();
+    }
+    break;
+
 
     default:
         http_response_code(404);

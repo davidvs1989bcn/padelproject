@@ -33,7 +33,6 @@ $hasFilters =
 <div class="row g-4">
   <!-- FILTROS -->
   <div class="col-12 col-lg-3">
-    <!-- ✅ Añadido: filters-card (para z-index/sticky controlado desde CSS) -->
     <div class="card border-0 shadow-sm filters-card sticky-lg-top" style="top: 16px;">
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-2">
@@ -44,7 +43,6 @@ $hasFilters =
         </div>
 
         <form method="GET" action="<?= BASE_URL ?>/products">
-          <!-- Mantener búsqueda/sección -->
           <input type="hidden" name="section" value="<?= htmlspecialchars($section) ?>">
           <input type="hidden" name="q" value="<?= htmlspecialchars($q) ?>">
 
@@ -115,6 +113,10 @@ $hasFilters =
     <?php else: ?>
       <div class="row row-cols-1 row-cols-md-3 g-4">
         <?php foreach($products as $p): ?>
+          <?php
+            // ✅ Modo automático: viene del ProductController::index()
+            $needsSize = !empty($p['has_sizes']);
+          ?>
           <div class="col">
             <div class="card h-100 border-0 product-card">
               <a href="<?= BASE_URL ?>/product/<?= (int)$p['id'] ?>" class="text-decoration-none">
@@ -150,12 +152,18 @@ $hasFilters =
                   ?>
                 </p>
 
-                <form action="<?= BASE_URL ?>/cart/add" method="POST" class="mt-auto">
-                  <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
-                  <button class="btn btn-warning w-100">
-                    <i class="fas fa-cart-plus"></i> Añadir
-                  </button>
-                </form>
+                <?php if ($needsSize): ?>
+                  <a class="btn btn-outline-warning w-100 mt-auto" href="<?= BASE_URL ?>/product/<?= (int)$p['id'] ?>">
+                    <i class="fas fa-ruler-combined"></i> Ver tallas
+                  </a>
+                <?php else: ?>
+                  <form action="<?= BASE_URL ?>/cart/add" method="POST" class="mt-auto">
+                    <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                    <button class="btn btn-warning w-100">
+                      <i class="fas fa-cart-plus"></i> Añadir
+                    </button>
+                  </form>
+                <?php endif; ?>
               </div>
             </div>
           </div>

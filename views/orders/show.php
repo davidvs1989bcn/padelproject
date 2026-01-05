@@ -20,6 +20,9 @@ function statusBadge(string $status): array {
 [$statusText, $badgeClass] = statusBadge($order['status'] ?? '');
 $itemCount = 0;
 foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
+
+$orderId = (int)($order['id'] ?? 0);
+$reviewedMap = $reviewedMap ?? []; // product_id => rating
 ?>
 
 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -72,6 +75,7 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
             <th class="text-end">Precio</th>
             <th class="text-end">Cantidad</th>
             <th class="text-end">Subtotal</th>
+            <th class="text-end" style="width:170px;">Reseña</th>
           </tr>
         </thead>
         <tbody>
@@ -80,6 +84,9 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
               $img = $it['product_image'] ?? '';
               $imgSrc = $img ? (ASSETS_URL . '/img/products/' . basename($img)) : (ASSETS_URL . '/img/products/placeholder.png');
               $size = trim((string)($it['size'] ?? ''));
+              $pid = (int)($it['product_id'] ?? 0);
+
+              $already = ($pid > 0 && isset($reviewedMap[$pid]));
             ?>
             <tr>
               <td>
@@ -114,12 +121,29 @@ foreach ($items as $it) $itemCount += (int)($it['quantity'] ?? 0);
               <td class="text-end"><?= number_format((float)($it['unit_price'] ?? 0), 2) ?> €</td>
               <td class="text-end"><?= (int)($it['quantity'] ?? 0) ?></td>
               <td class="text-end fw-semibold"><?= number_format((float)($it['subtotal'] ?? 0), 2) ?> €</td>
+
+              <td class="text-end">
+                <?php if ($pid <= 0): ?>
+                  <span class="text-muted small">—</span>
+
+                <?php elseif ($already): ?>
+                  <span class="badge bg-light text-dark border">
+                    <?= (int)$reviewedMap[$pid] ?>/5 <i class="fas fa-star text-warning"></i>
+                  </span>
+
+                <?php else: ?>
+                  <a class="btn btn-outline-warning btn-sm"
+                     href="<?= BASE_URL ?>/review?product_id=<?= $pid ?>&order_id=<?= (int)$orderId ?>&redirect=order">
+                    <i class="fas fa-star"></i> Reseñar
+                  </a>
+                <?php endif; ?>
+              </td>
             </tr>
           <?php endforeach; ?>
         </tbody>
         <tfoot class="table-light">
           <tr>
-            <td colspan="4" class="text-end fw-semibold">Total</td>
+            <td colspan="5" class="text-end fw-semibold">Total</td>
             <td class="text-end fw-bold"><?= number_format((float)$order['total'], 2) ?> €</td>
           </tr>
         </tfoot>

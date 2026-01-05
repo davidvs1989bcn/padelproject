@@ -1,4 +1,5 @@
 <?php
+
 class OrderController {
 
     private function requireLogin(): void {
@@ -21,7 +22,7 @@ class OrderController {
         require 'views/orders/index.php';
     }
 
-    // ✅ Checkout: GET = resumen / POST = confirmar
+    // ================= CHECKOUT =================
     public function checkout(): void {
         $this->requireLogin();
 
@@ -39,40 +40,57 @@ class OrderController {
         $error = null;
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $orderModel = new Order();
-        $orderId = $orderModel->create((int)$_SESSION['user']['id'], $cart, (float)$total);
+            try {
+                $orderModel = new Order();
+                $orderId = $orderModel->create(
+                    (int)$_SESSION['user']['id'],
+                    $cart,
+                    (float)$total
+                );
 
-        $_SESSION['cart'] = [];
-        header("Location: " . BASE_URL . "/order/" . $orderId);
-        exit;
+                $_SESSION['cart'] = [];
+                header("Location: " . BASE_URL . "/order/" . $orderId);
+                exit;
 
-    } catch (Exception $e) {
-        $error = $e->getMessage(); // lo muestras en checkout.php
-    }
-}
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
+        }
 
-
-        // GET -> mostrar resumen (o POST con error -> volver a mostrar resumen)
         require 'views/orders/checkout.php';
     }
 
+    // ================= VER PEDIDO =================
     public function show(int $orderId): void {
         $this->requireLogin();
 
         $orderModel = new Order();
-        $order = $orderModel->findForUser($orderId, (int)$_SESSION['user']['id']);
+        $reviewModel = new Review();
+
+        $order = $orderModel->findForUser(
+            $orderId,
+            (int)$_SESSION['user']['id']
+        );
 
         if (!$order) {
             http_response_code(404);
             require 'views/layout/header.php';
-            echo "<div class='container py-5 text-center'><h1>Pedido no encontrado</h1>";
-            echo "<a class='btn btn-primary' href='".BASE_URL."/orders'>Volver</a></div>";
+            echo "<div class='container py-5 text-center'>
+                    <h1>Pedido no encontrado</h1>
+                    <a class='btn btn-primary' href='".BASE_URL."/orders'>Volver</a>
+                  </div>";
             require 'views/layout/footer.php';
             return;
         }
 
         $items = $orderModel->items($orderId);
+
+        // ✅ Productos ya reseñados en este pedido
+        $reviewedProducts = $reviewModel->reviewedOrders(
+            $orderId,
+            (int)$_SESSION['user']['id']
+        );
+
         require 'views/orders/show.php';
     }
 }

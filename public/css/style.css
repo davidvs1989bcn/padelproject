@@ -140,12 +140,11 @@ a:hover { text-decoration: none; }
 
 /* ===== Navbar dropdown (Menú) ===== */
 .navbar .dropdown-menu{
-  z-index: 2000;            /* mantiene el menú por encima del contenido */
-  min-width: 220px;         /* evita que se haga enorme */
+  z-index: 2000;
+  min-width: 220px;
   max-width: 260px;
 }
 
-/* evita que el dropdown quede demasiado ancho por el contenido */
 .navbar .dropdown-menu .dropdown-item,
 .navbar .dropdown-menu .dropdown-header{
   white-space: nowrap;
@@ -154,14 +153,146 @@ a:hover { text-decoration: none; }
 /* ===== Panel filtros ===== */
 .filters-card{
   position: relative;
-  z-index: 1;               /* contenido normal */
+  z-index: 1;
 }
 
-/* En pantallas grandes: fija y crea “columna” de filtros */
 @media (min-width: 992px){
   .filters-card{
     position: sticky;
-    top: 90px;              /* baja un poco bajo la navbar */
+    top: 90px;
     z-index: 10;
   }
+}
+
+/* =======================================================
+   PRODUCT SHOW - GALERÍA + ZOOM ABAJO (tipo Amazon)
+   - Miniaturas izquierda
+   - Imagen principal
+   - Zoom ABAJO (no tapa descripción)
+   - Zoom con la MISMA altura que la imagen principal
+   ======================================================= */
+
+.pp-gallery{
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* Miniaturas */
+.pp-thumbs{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 74px;
+  flex: 0 0 74px;
+}
+
+.pp-thumb{
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 6px;
+  cursor: pointer;
+  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+
+.pp-thumb img{
+  width: 100%;
+  height: 56px;
+  object-fit: contain;
+  display: block;
+}
+
+.pp-thumb:hover{
+  transform: translateY(-1px);
+  border-color: #fbbf24;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+}
+
+.pp-thumb.is-active{
+  border-color: #f59e0b;
+  box-shadow: 0 10px 22px rgba(245,158,11,.18);
+}
+
+/* Contenedor principal */
+.pp-mainwrap{
+  flex: 1;
+  min-width: 0;
+}
+
+/* Card de imagen grande */
+.pp-maincard{
+  position: relative;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.06);
+  overflow: hidden;
+  border: 1px solid #eee;
+  width: 100%;
+  max-width: 520px;
+}
+
+.pp-maincard img{
+  width: 100%;
+  height: 520px;
+  object-fit: contain;
+  display: block;
+  background: #fff;
+}
+
+/* Lente */
+.pp-lens{
+  position: absolute;
+  display: none;
+  border: 2px solid rgba(245,158,11,.95);
+  background: rgba(245,158,11,.18);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.pp-lens.is-visible{
+  display: block;
+}
+
+/* ✅ ZOOM ABAJO (NO tapa descripción) */
+.pp-zoom{
+  margin-top: 16px;
+
+  width: 100%;
+  max-width: 520px;
+  height: 520px;              /* 👈 CLAVE: misma altura que la imagen principal */
+
+  background-repeat: no-repeat;
+  background-color: #fff;
+  border-radius: 18px;
+  border: 1px solid #eee;
+  box-shadow: 0 18px 45px rgba(0,0,0,.12);
+
+  display: none;
+}
+
+.pp-zoom.is-visible{
+  display: block;
+}
+
+/* Hint */
+.pp-hint{
+  font-size: .85rem;
+  color: #6b7280;
+  margin-top: 10px;
+}
+
+/* Responsive: en pantallas pequeñas, quitamos zoom y ajustamos imagen */
+@media (max-width: 991px){
+  .pp-gallery{ flex-direction: column; }
+  .pp-thumbs{
+    flex-direction: row;
+    width: 100%;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .pp-thumb{ width: 74px; flex: 0 0 74px; }
+  .pp-maincard img{ height: 360px; }
+  .pp-zoom{ display:none !important; }
 }

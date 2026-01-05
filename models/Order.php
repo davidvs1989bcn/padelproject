@@ -9,12 +9,11 @@ class Order {
     }
 
     public function create(int $userId, array $cart, float $total): int {
-        $productModel = new Product();
 
         try {
             $this->conn->beginTransaction();
 
-            // Crear pedido
+            // 1) Crear pedido
             $stmt = $this->conn->prepare(
                 "INSERT INTO orders (user_id, total, status, created_at)
                  VALUES (?, ?, 'paid', NOW())"
@@ -22,15 +21,32 @@ class Order {
             $stmt->execute([$userId, $total]);
             $orderId = (int)$this->conn->lastInsertId();
 
-            // Insert items (con size)
+            // 2) Preparar INSERT de items (con size)
             $itemStmt = $this->conn->prepare(
                 "INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity, subtotal, size)
                  VALUES (?, ?, ?, ?, ?, ?, ?)"
             );
 
+            // 3) Preparar UPDATEs de stock (ATÓMICOS)
+            // Stock general (sin talla)
+            $decGeneralStmt = $this->conn->prepare(
+                "UPDATE products
+                 SET stock = stock - ?
+                 WHERE id = ? AND stock >= ?"
+            );
+
+            // Stock por talla
+            $decSizeStmt = $this->conn->prepare(
+                "UPDATE product_sizes
+                 SET stock = stock - ?
+                 WHERE product_id = ? AND size = ? AND stock >= ?"
+            );
+
+            $inserted = 0;
+
             foreach ($cart as $item) {
-                $pid = (int)($item['id'] ?? 0);
-                $qty = (int)($item['quantity'] ?? 0);
+                $pid  = (int)($item['id'] ?? 0);
+                $qty  = (int)($item['quantity'] ?? 0);
                 $size = trim((string)($item['size'] ?? ''));
 
                 if ($pid <= 0 || $qty <= 0) {
@@ -40,30 +56,37 @@ class Order {
                 // 1) Descontar stock en BD (si falla -> rollback)
                 if ($size !== '') {
                     // Stock por talla
-                    $ok = $productModel->decrementSizeStock($pid, $size, $qty);
-                    if (!$ok) {
+                    $decSizeStmt->execute([$qty, $pid, $size, $qty]);
+                    if ($decSizeStmt->rowCount() === 0) {
                         throw new Exception("No hay stock suficiente para la talla $size.");
                     }
                 } else {
                     // Stock general
-                    $ok = $productModel->decrementGeneralStock($pid, $qty);
-                    if (!$ok) {
+                    $decGeneralStmt->execute([$qty, $pid, $qty]);
+                    if ($decGeneralStmt->rowCount() === 0) {
                         throw new Exception("No hay stock suficiente para este producto.");
                     }
                 }
 
                 // 2) Guardar item
-                $subtotal = ((float)$item['price']) * $qty;
+                $unitPrice = (float)($item['price'] ?? 0);
+                $subtotal  = $unitPrice * $qty;
 
                 $itemStmt->execute([
                     $orderId,
                     $pid,
                     (string)($item['name'] ?? ''),
-                    (float)($item['price'] ?? 0),
+                    $unitPrice,
                     $qty,
                     (float)$subtotal,
                     $size
                 ]);
+
+                $inserted++;
+            }
+
+            if ($inserted <= 0) {
+                throw new Exception("No se pudo crear el pedido: carrito vacío o inválido.");
             }
 
             $this->conn->commit();
@@ -73,7 +96,6 @@ class Order {
             if ($this->conn->inTransaction()) {
                 $this->conn->rollBack();
             }
-            // Re-lanzamos para que el controller muestre error
             throw $e;
         }
     }
@@ -101,7 +123,12 @@ class Order {
                     WHERE oi3.order_id = o.id
                     ORDER BY oi3.id ASC
                     LIMIT 1
-                ) AS first_image
+                ) AS first_image,
+                (
+                    SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
+                    FROM order_items oi4
+                    WHERE oi4.order_id = o.id AND TRIM(COALESCE(oi4.size,'')) <> ''
+                ) AS has_sizes
             FROM orders o
             WHERE o.user_id = ?
             ORDER BY o.id DESC

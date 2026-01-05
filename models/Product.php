@@ -244,6 +244,17 @@ class Product {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // ============================
+    // ✅ NUEVO: detectar si un producto tiene tallas en BD
+    // ============================
+    public function hasSizes(int $productId): bool {
+        $stmt = $this->conn->prepare(
+            "SELECT 1 FROM product_sizes WHERE product_id = ? LIMIT 1"
+        );
+        $stmt->execute([$productId]);
+        return (bool)$stmt->fetchColumn();
+    }
+
     // ===== STOCK POR TALLA =====
     public function sizeStocks(int $productId): array {
         $stmt = $this->conn->prepare(
